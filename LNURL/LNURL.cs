@@ -5,8 +5,8 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Bech32;
 using BTCPayServer.LNUrl;
-using NBitcoin.DataEncoders;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL
@@ -35,8 +35,7 @@ namespace LNURL
             lnurl = lnurl.Replace("lightning:", "", StringComparison.InvariantCultureIgnoreCase);
             if (lnurl.StartsWith("lnurl1", StringComparison.InvariantCultureIgnoreCase))
             {
-                var encoder = Bech32Encoder.ExtractEncoderFromString(lnurl);
-                var data = encoder.DecodeDataRaw(lnurl, out _);
+                Bech32Engine.Decode(lnurl, out _, out var data);
                 var result = new Uri(Encoding.UTF8.GetString(data));
                 if (!result.IsOnion() && !result.Scheme.Equals("https"))
                     throw new FormatException("LNURL provided is not secure.");
