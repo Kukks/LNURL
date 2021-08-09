@@ -1,7 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFrameworks>net5.0;netstandard2.1</TargetFrameworks>
+        <Authors>Andrew Camilleri (kukks)</Authors>
+        <Copyright>MIT</Copyright>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>LNURL protocol implementation in .NET Core</Description>
+        <PackageLicenseUrl>https://raw.githubusercontent.com/Kukks/LNURL/master/LICENSE</PackageLicenseUrl>
+        <PackageTags>bitcoin lightning lnurl </PackageTags>
+        <PackageVersion>0.0.1</PackageVersion>
     </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BTCPayServer.Lightning.Common" Version="1.2.4" />
+        <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    </ItemGroup>
 
 </Project>
