@@ -15,7 +15,7 @@ jobs:
           dotnet-version: 5.0.x
       - name: Publish NuGet
         if: ${{ github.ref == 'refs/heads/master' }} # Publish only when the push is on master
-        uses: brandedoutcast/publish-nuget@v2.5.5
+        uses: brandedoutcast/publish-nuget@master
         with:
           PROJECT_FILE_PATH: LNURL/LNURL.csproj
           NUGET_KEY: ${{secrets.NUGET_KEY}}
