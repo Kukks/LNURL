@@ -5,6 +5,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Dump github context
+        run: echo "$GITHUB_CONTEXT"
+        shell: bash
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
       # Checkout the code
       - uses: actions/checkout@v2
 
@@ -33,7 +38,7 @@ jobs:
         uses: Rebel028/publish-nuget@v2.6.3
         with:
           PROJECT_FILE_PATH: LNURL/LNURL.csproj
-          NUGET_SOURCE: "GPR"
+          NUGET_SOURCE: "https://nuget.pkg.github.com/Kukks/"
           NUGET_KEY: "GPR"
           PACKAGE_NAME: LNURL
           INCLUDE_SYMBOLS: false
