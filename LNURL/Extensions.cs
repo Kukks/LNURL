@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BTCPayServer.LNUrl
+namespace LNURL
 {
     public static class Extensions
     {

@@ -1,25 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Bech32;
-using BTCPayServer.LNUrl;
+using BTCPayServer.Lightning;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL
 {
     public class LNURL
     {
-        public static readonly Dictionary<string, string> SchemeTagMapping = new Dictionary<string, string>()
+        private static readonly Dictionary<string, string> SchemeTagMapping = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
         {
             { "lnurlc", "channelRequest" },
             { "lnurlw", "withdrawRequest" },
             { "lnurlp", "payRequest" },
             { "keyauth", "login" }
         };
+
+        private static readonly Dictionary<string, string> SchemeTagMappingReversed = 
+            SchemeTagMapping.ToDictionary(pair => pair.Value, pair => pair.Key, StringComparer.InvariantCultureIgnoreCase);
 
         internal static void AppendPayloadToQuery(UriBuilder uri, string key, string value)
         {
@@ -51,6 +54,48 @@ namespace LNURL
                     .Replace(lud17Uri.Scheme + ":", lud17Uri.IsOnion() ? "http:" : "https:"));
 
             throw new FormatException("LNURL uses bech32 and 'lnurl' as the hrp (LUD1) or an lnurl LUD17 scheme. ");
+        }
+
+        public static string EncodeBech32(Uri serviceUrl)
+        {
+            if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion())
+            {
+                throw new ArgumentException("serviceUrl must be an onion service OR https based", nameof(serviceUrl));
+            }
+            return Bech32Engine.Encode("lnurl", Encoding.UTF8.GetBytes(serviceUrl.ToString()));
+        }
+        public static Uri EncodeUri(Uri serviceUrl, string tag, bool bech32)
+        {
+            if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion())
+            {
+                throw new ArgumentException("serviceUrl must be an onion service OR https based", nameof(serviceUrl));
+            }
+
+            if (bech32)
+            {
+                return new Uri($"lightning:{EncodeBech32(serviceUrl)}");
+            }
+
+            if (string.IsNullOrEmpty(tag))
+            {
+                tag = serviceUrl.ParseQueryString().Get("tag");
+            }
+
+            if (string.IsNullOrEmpty(tag))
+            {
+                throw new ArgumentNullException("tag must be provided", nameof(tag));
+            }
+
+            if (!SchemeTagMappingReversed.TryGetValue(tag.ToLowerInvariant(), out var scheme))
+            {
+                
+                throw new ArgumentOutOfRangeException($"tag must be either {string.Join(',', SchemeTagMappingReversed.Select(pair => pair.Key))}", nameof(tag));
+            }
+
+            return new UriBuilder(serviceUrl)
+            {
+                Scheme = scheme
+            }.Uri;
         }
 
         //https://github.com/fiatjaf/lnurl-rfc/blob/luds/16.md
@@ -123,8 +168,7 @@ namespace LNURL
                     return await FetchInformation(response, tag, httpClient);
             }
         }
-
-
+        
         private static async Task<object> FetchInformation(JObject response, string tag, HttpClient httpClient)
         {
             if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
