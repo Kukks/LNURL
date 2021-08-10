@@ -18,10 +18,12 @@ jobs:
         run: dotnet test
       - name: Publish NuGet
         if: ${{ github.ref == 'refs/heads/master' }} # Publish only when the push is on master
-        uses: brandedoutcast/publish-nuget@master
+        uses: Rebel028/publish-nuget@v2.6.3
         with:
           PROJECT_FILE_PATH: LNURL/LNURL.csproj
           NUGET_KEY: ${{secrets.NUGET_KEY}}
           PACKAGE_NAME: LNURL
           INCLUDE_SYMBOLS: true
           VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
+          TAG_COMMIT: true
+          TAG_FORMAT: v*
