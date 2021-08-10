@@ -9,6 +9,8 @@
         <PackageLicenseUrl>https://raw.githubusercontent.com/Kukks/LNURL/master/LICENSE</PackageLicenseUrl>
         <PackageTags>bitcoin lightning lnurl </PackageTags>
         <PackageVersion>0.0.4</PackageVersion>
+        <RepositoryUrl>https://github.com/Kukks/LNURL.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 
     <ItemGroup>
