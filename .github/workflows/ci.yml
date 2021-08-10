@@ -33,7 +33,7 @@ jobs:
         uses: Rebel028/publish-nuget@v2.6.3
         with:
           PROJECT_FILE_PATH: LNURL/LNURL.csproj
-          NUGET_SOURCE: "https://nuget.pkg.github.com/${{ github.repository_owner}}"
+          NUGET_SOURCE: "https://nuget.pkg.github.com/Kukks"
           NUGET_KEY: ${{secrets.GH_TOKEN}}
           PACKAGE_NAME: LNURL
           INCLUDE_SYMBOLS: false
