@@ -8,9 +8,10 @@
         <Description>LNURL protocol implementation in .NET Core</Description>
         <PackageLicenseUrl>https://raw.githubusercontent.com/Kukks/LNURL/master/LICENSE</PackageLicenseUrl>
         <PackageTags>bitcoin lightning lnurl </PackageTags>
-        <PackageVersion>0.0.4</PackageVersion>
+        <PackageVersion>0.0.5</PackageVersion>
         <RepositoryUrl>https://github.com/Kukks/LNURL.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
     </PropertyGroup>
 
     <ItemGroup>

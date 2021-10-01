@@ -6,23 +6,24 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using BTCPayServer.Lightning;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL
 {
     public class LNURL
     {
-        private static readonly Dictionary<string, string> SchemeTagMapping = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
-        {
-            { "lnurlc", "channelRequest" },
-            { "lnurlw", "withdrawRequest" },
-            { "lnurlp", "payRequest" },
-            { "keyauth", "login" }
-        };
+        private static readonly Dictionary<string, string> SchemeTagMapping =
+            new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                { "lnurlc", "channelRequest" },
+                { "lnurlw", "withdrawRequest" },
+                { "lnurlp", "payRequest" },
+                { "keyauth", "login" }
+            };
 
-        private static readonly Dictionary<string, string> SchemeTagMappingReversed = 
-            SchemeTagMapping.ToDictionary(pair => pair.Value, pair => pair.Key, StringComparer.InvariantCultureIgnoreCase);
+        private static readonly Dictionary<string, string> SchemeTagMappingReversed =
+            SchemeTagMapping.ToDictionary(pair => pair.Value, pair => pair.Key,
+                StringComparer.InvariantCultureIgnoreCase);
 
         internal static void AppendPayloadToQuery(UriBuilder uri, string key, string value)
         {
@@ -62,8 +63,10 @@ namespace LNURL
             {
                 throw new ArgumentException("serviceUrl must be an onion service OR https based", nameof(serviceUrl));
             }
+
             return Bech32Engine.Encode("lnurl", Encoding.UTF8.GetBytes(serviceUrl.ToString()));
         }
+
         public static Uri EncodeUri(Uri serviceUrl, string tag, bool bech32)
         {
             if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion())
@@ -88,8 +91,9 @@ namespace LNURL
 
             if (!SchemeTagMappingReversed.TryGetValue(tag.ToLowerInvariant(), out var scheme))
             {
-                
-                throw new ArgumentOutOfRangeException($"tag must be either {string.Join(',', SchemeTagMappingReversed.Select(pair => pair.Key))}", nameof(tag));
+                throw new ArgumentOutOfRangeException(
+                    $"tag must be either {string.Join(',', SchemeTagMappingReversed.Select(pair => pair.Key))}",
+                    nameof(tag));
             }
 
             return new UriBuilder(serviceUrl)
@@ -99,14 +103,26 @@ namespace LNURL
         }
 
         //https://github.com/fiatjaf/lnurl-rfc/blob/luds/16.md
-        public static Task<object> FetchPayRequestViaInternetIdentifier(string identifier, HttpClient httpClient)
+        public static async Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
+            HttpClient httpClient)
+        {
+            return (LNURLPayRequest)await FetchInformation(ExtractUriFromInternetIdentifier(identifier), "payRequest",
+                httpClient);
+        }
+
+        public static Uri ExtractUriFromInternetIdentifier(string identifier)
         {
             var s = identifier.Split("@");
             var name = s[0];
             var host = new Uri(s[1]);
             var uriBuilder = new UriBuilder(host.IsOnion() ? "http" : "https", identifier);
             uriBuilder.Path = $"/.wellknown/lnurlp/{name}";
-            return FetchInformation(uriBuilder.Uri, "payRequest", httpClient);
+            return uriBuilder.Uri;
+        }
+
+        public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient)
+        {
+            return await FetchInformation(lnUrl, null, httpClient);
         }
 
         public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
@@ -121,7 +137,7 @@ namespace LNURL
                     if (response.TryGetValue("tag", out var tagToken))
                     {
                         tag = tagToken.ToString();
-                        return await FetchInformation(response, tag, httpClient);
+                        return FetchInformation(response, tag);
                     }
 
                     throw new LNUrlException("A tag identifying the LNURL endpoint was not received.");
@@ -136,7 +152,7 @@ namespace LNURL
                     if (k1 is null || minWithdrawable is null || maxWithdrawable is null || callback is null)
                     {
                         response = JObject.Parse(await httpClient.GetStringAsync(lnUrl));
-                        return await FetchInformation(response, tag, httpClient);
+                        return FetchInformation(response, tag);
                     }
 
                     return new LNURLWithdrawRequest
@@ -159,17 +175,17 @@ namespace LNURL
                         K1 = k1,
                         LNUrl = lnUrl,
                         Action = string.IsNullOrEmpty(action)
-                            ? (LNAuthRequest.LNAUthRequestAction?) null
+                            ? (LNAuthRequest.LNAUthRequestAction?)null
                             : Enum.Parse<LNAuthRequest.LNAUthRequestAction>(action, true)
                     };
 
                 default:
                     response = JObject.Parse(await httpClient.GetStringAsync(lnUrl));
-                    return await FetchInformation(response, tag, httpClient);
+                    return FetchInformation(response, tag);
             }
         }
-        
-        private static async Task<object> FetchInformation(JObject response, string tag, HttpClient httpClient)
+
+        private static object FetchInformation(JObject response, string tag)
         {
             if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
 
