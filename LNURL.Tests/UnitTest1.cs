@@ -6,8 +6,8 @@ namespace LNURL.Tests
     public class UnitTest1
     {
         [Theory]
-        [InlineData("kukks@btcpay.kukks.org", "https://btcpay.kukks.org/.wellknown/lnurlp/kukks")]
-        [InlineData("kukks@tor.onion","http://tor.onion/.wellknown/lnurlp/kukks")]
+        [InlineData("kukks@btcpay.kukks.org", "https://btcpay.kukks.org/.well-known/lnurlp/kukks")]
+        [InlineData("kukks@tor.onion","http://tor.onion/.well-known/lnurlp/kukks")]
         public void CanParseLightningAddress(string lightningAddress, string expectedUrl)
         {
             Assert.Equal(expectedUrl, LNURL.ExtractUriFromInternetIdentifier(lightningAddress).ToString());

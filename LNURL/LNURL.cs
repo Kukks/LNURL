@@ -117,7 +117,7 @@ namespace LNURL
                 new UriBuilder(s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
                     s[1])
                 {
-                    Path = $"/.wellknown/lnurlp/{s[0]}"
+                    Path = $"/.well-known/lnurlp/{s[0]}"
                 };
             return uriBuilder.Uri;
         }
