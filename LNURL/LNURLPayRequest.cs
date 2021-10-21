@@ -66,7 +66,7 @@ namespace LNURL
             if (LNUrlStatusResponse.IsErrorResponse(response, out var error)) throw new LNUrlException(error.Reason);
 
             var result = response.ToObject<LNURLPayRequestCallbackResponse>();
-            if (result.Verify(this, amount, network)) return result;
+            if (result.Verify(this, amount, network, out var invoice)) return result;
 
             throw new LNUrlException(
                 "LNURL payRequest returned an invoice but its amount or hash did not match the request");
@@ -77,6 +77,7 @@ namespace LNURL
             [JsonProperty("pr")] public string Pr { get; set; }
 
             [JsonProperty("routes")] public Array Routes { get; set; }
+            private BOLT11PaymentRequest _paymentRequest;
 
             /// <summary>
             ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/11.md
@@ -91,11 +92,30 @@ namespace LNURL
             [JsonConverter(typeof(LNURLPayRequestSuccessActionJsonConverter))]
             public ILNURLPayRequestSuccessAction SuccessAction { get; set; }
 
-            public bool Verify(LNURLPayRequest request, LightMoney expectedAmount, Network network)
+            public bool Verify(LNURLPayRequest request, LightMoney expectedAmount, Network network,
+                out BOLT11PaymentRequest bolt11PaymentRequest)
             {
-                return BOLT11PaymentRequest.TryParse(Pr, out var inv, network) &&
-                       inv.MinimumAmount == expectedAmount &&
-                       inv.VerifyDescriptionHash(request.Metadata);
+                if (_paymentRequest != null)
+                {
+                    bolt11PaymentRequest = _paymentRequest;
+                }
+                else if (!BOLT11PaymentRequest.TryParse(Pr, out bolt11PaymentRequest, network))
+                {
+                    return false;
+                }
+                else
+                {
+                    _paymentRequest = bolt11PaymentRequest;
+                }
+
+                return _paymentRequest.MinimumAmount == expectedAmount &&
+                       _paymentRequest.VerifyDescriptionHash(request.Metadata);
+            }
+
+            public BOLT11PaymentRequest GetPaymentRequest(Network network)
+            {
+                _paymentRequest ??= BOLT11PaymentRequest.Parse(Pr, network);
+                return _paymentRequest;
             }
 
             public interface ILNURLPayRequestSuccessAction
