@@ -41,9 +41,10 @@ namespace LNURL
             {
                 Bech32Engine.Decode(lnurl, out _, out var data);
                 var result = new Uri(Encoding.UTF8.GetString(data));
-                if (!result.IsOnion() && !result.Scheme.Equals("https"))
-                    throw new FormatException("LNURL provided is not secure.");
 
+                if (!result.IsOnion() && !result.Scheme.Equals("https") && !result.IsLocalNetwork())
+                    throw new FormatException("LNURL provided is not secure.");
+                
                 var query = result.ParseQueryString();
                 tag = query.Get("tag");
                 return result;
