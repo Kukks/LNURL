@@ -59,9 +59,9 @@ namespace LNURL
 
         public static string EncodeBech32(Uri serviceUrl)
         {
-            if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion())
+            if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork())
             {
-                throw new ArgumentException("serviceUrl must be an onion service OR https based", nameof(serviceUrl));
+                throw new ArgumentException("serviceUrl must be an onion service OR https based OR on the local network", nameof(serviceUrl));
             }
 
             return Bech32Engine.Encode("lnurl", Encoding.UTF8.GetBytes(serviceUrl.ToString()));
@@ -69,9 +69,9 @@ namespace LNURL
 
         public static Uri EncodeUri(Uri serviceUrl, string tag, bool bech32)
         {
-            if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion())
+            if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork())
             {
-                throw new ArgumentException("serviceUrl must be an onion service OR https based", nameof(serviceUrl));
+                throw new ArgumentException("serviceUrl must be an onion service OR https based OR on the local network", nameof(serviceUrl));
             }
 
             if (bech32)
