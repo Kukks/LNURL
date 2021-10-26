@@ -76,8 +76,8 @@ namespace LNURL
         {
             [JsonProperty("pr")] public string Pr { get; set; }
 
-            [JsonProperty("routes")] public Array Routes { get; set; }
-            
+            [JsonProperty("routes")] public string[] Routes { get; set; } = Array.Empty<string>();
+
             [JsonIgnore]
             private BOLT11PaymentRequest _paymentRequest;
 
