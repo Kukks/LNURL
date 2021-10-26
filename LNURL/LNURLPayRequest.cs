@@ -203,6 +203,11 @@ namespace LNURL
                 public override void WriteJson(JsonWriter writer, ILNURLPayRequestSuccessAction value,
                     JsonSerializer serializer)
                 {
+                    if (value is null)
+                    {
+                        writer.WriteNull();
+                        return;
+                    }
                     JObject.FromObject(value).WriteTo(writer);
                 }
 
@@ -210,6 +215,10 @@ namespace LNURL
                     ILNURLPayRequestSuccessAction existingValue,
                     bool hasExistingValue, JsonSerializer serializer)
                 {
+                    if (reader.TokenType is JsonToken.Null)
+                    {
+                        return null;
+                    }
                     var jobj = JObject.Load(reader);
                     switch (jobj.GetValue("tag").Value<string>())
                     {
