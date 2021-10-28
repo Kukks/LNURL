@@ -114,12 +114,26 @@ namespace LNURL
         public static Uri ExtractUriFromInternetIdentifier(string identifier)
         {
             var s = identifier.Split("@");
-            var uriBuilder =
-                new UriBuilder(s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
-                    s[1])
+            var s2 = s[1].Split(":");
+            UriBuilder uriBuilder;
+            if (s2.Length > 1)
+            {
+                uriBuilder = new UriBuilder(s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
+                    s2[0], int.Parse(s2[1]))
                 {
                     Path = $"/.well-known/lnurlp/{s[0]}"
                 };
+            }
+            else
+            {
+                uriBuilder =
+                    new UriBuilder(s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
+                        s2[0])
+                    {
+                        Path = $"/.well-known/lnurlp/{s[0]}"
+                    };
+            }
+            
             return uriBuilder.Uri;
         }
 
