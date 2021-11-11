@@ -6,6 +6,8 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using NBitcoin;
+using NBitcoin.DataEncoders;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL
@@ -74,7 +76,14 @@ namespace LNURL
             {
                 throw new ArgumentException("serviceUrl must be an onion service OR https based OR on the local network", nameof(serviceUrl));
             }
-
+            if (string.IsNullOrEmpty(tag))
+            {
+                tag = serviceUrl.ParseQueryString().Get("tag");
+            }
+            if (tag == "login")
+            {
+                LNAuthRequest.EnsureValidUrl(serviceUrl);
+            }
             if (bech32)
             {
                 return new Uri($"lightning:{EncodeBech32(serviceUrl)}");
@@ -97,6 +106,8 @@ namespace LNURL
                     nameof(tag));
             }
 
+            
+            
             return new UriBuilder(serviceUrl)
             {
                 Scheme = scheme
@@ -144,6 +155,19 @@ namespace LNURL
 
         public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
         {
+            try
+            {
+                lnUrl = Parse(lnUrl.ToString(), out tag);
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
+
+            if (tag is null)
+            {
+                tag = lnUrl.ParseQueryString().Get("tag");
+            }
             JObject response;
             NameValueCollection queryString;
             string k1;

@@ -1,4 +1,7 @@
 using System;
+using System.Threading.Tasks;
+using NBitcoin;
+using NBitcoin.DataEncoders;
 using Xunit;
 
 namespace LNURL.Tests
@@ -50,6 +53,39 @@ namespace LNURL.Tests
             Assert.NotNull(uri);
             Assert.Equal("https://service.com/api?q=3fc3645b439ce8e7f2553a69e5267081d96dcd340693afabe04be7b0ccd178df",
                 uri.ToString());
+        }
+
+        [Fact]
+        public async Task CanUseLNURLAUTH()
+        {
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                LNURL.EncodeUri(new Uri("https://kukks.org"), "login", true);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                LNURL.EncodeUri(new Uri("https://kukks.org?tag=login"), "login", true);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                LNURL.EncodeUri(new Uri("https://kukks.org?tag=login&k1=123"), "login", true);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var k1 = Encoders.Hex.EncodeData(RandomUtils.GetBytes(32));
+                LNURL.EncodeUri(new Uri($"https://kukks.org?tag=login&k1={k1}&action=xyz"), "login", true);
+            });
+            
+            var k1 = Encoders.Hex.EncodeData(RandomUtils.GetBytes(32));
+           var lnurl = LNURL.EncodeUri(new Uri($"https://kukks.org?tag=login&k1={k1}"), "login", true);
+
+           var request = Assert.IsType<LNAuthRequest>(await LNURL.FetchInformation(lnurl, null));
+
+           var linkingKey = new Key();
+           var sig = request.SignChallenge(linkingKey);
+           Assert.True( LNAuthRequest.VerifyChallenge(sig, linkingKey.PubKey, Encoders.Hex.DecodeData(k1)));
+
         }
     }
 }
