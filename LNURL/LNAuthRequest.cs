@@ -15,7 +15,7 @@ namespace LNURL
     public class LNAuthRequest
     {
         public Uri LNUrl { get; set; }
-        public enum LNAUthRequestAction
+        public enum LNAuthRequestAction
         {
             Register,
             Login,
@@ -25,7 +25,7 @@ namespace LNURL
             
         public string Tag => "login";
         public string K1 { get; set; }
-        public LNAUthRequestAction? Action { get; set; }
+        public LNAuthRequestAction? Action { get; set; }
 
         public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient)
         {
@@ -79,7 +79,7 @@ namespace LNURL
             }
 
             var action = serviceUrl.ParseQueryString().Get("action");
-            if (action != null && !Enum.TryParse(typeof(LNAUthRequestAction), action, true, out _))
+            if (action != null && !Enum.TryParse(typeof(LNAuthRequestAction), action, true, out _))
             {
                 throw new ArgumentException(nameof(serviceUrl),"LNURL-Auth(LUD04) action value was invalid");  
 

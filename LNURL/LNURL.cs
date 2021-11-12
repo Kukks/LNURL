@@ -27,7 +27,7 @@ namespace LNURL
             SchemeTagMapping.ToDictionary(pair => pair.Value, pair => pair.Key,
                 StringComparer.InvariantCultureIgnoreCase);
 
-        internal static void AppendPayloadToQuery(UriBuilder uri, string key, string value)
+        public static void AppendPayloadToQuery(UriBuilder uri, string key, string value)
         {
             if (uri.Query.Length > 1)
                 uri.Query += "&";
@@ -216,8 +216,8 @@ namespace LNURL
                         K1 = k1,
                         LNUrl = lnUrl,
                         Action = string.IsNullOrEmpty(action)
-                            ? (LNAuthRequest.LNAUthRequestAction?)null
-                            : Enum.Parse<LNAuthRequest.LNAUthRequestAction>(action, true)
+                            ? (LNAuthRequest.LNAuthRequestAction?)null
+                            : Enum.Parse<LNAuthRequest.LNAuthRequestAction>(action, true)
                     };
 
                 default:
