@@ -14,7 +14,7 @@ namespace LNURL
     /// </summary>
     public class LNURLWithdrawRequest
     {
-        [JsonProperty("uri")]
+        [JsonProperty("callback")]
         [JsonConverter(typeof(UriJsonConverter))]
         public Uri Callback { get; set; }
 
@@ -33,7 +33,7 @@ namespace LNURL
         public LightMoney MaxWithdrawable { get; set; }
 
         //https://github.com/fiatjaf/lnurl-rfc/blob/luds/14.md
-        [JsonProperty("maxWithdrawable")]
+        [JsonProperty("currentBalance ")]
         [JsonConverter(typeof(LightMoneyJsonConverter))]
         public LightMoney CurrentBalance { get; set; }
 
