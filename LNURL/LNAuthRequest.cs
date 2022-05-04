@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL
@@ -23,8 +25,11 @@ namespace LNURL
             Auth
         }
             
-        public string Tag => "login";
-        public string K1 { get; set; }
+
+        [JsonProperty("tag")] public string Tag => "login";
+        [JsonProperty("k1")] public string K1 { get; set; }
+        [JsonProperty("action")]
+        [JsonConverter(typeof(StringEnumConverter))]
         public LNAuthRequestAction? Action { get; set; }
 
         public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient)
