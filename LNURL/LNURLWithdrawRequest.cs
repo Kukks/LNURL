@@ -54,6 +54,7 @@ namespace LNURL
             var url = Callback;
             var uriBuilder = new UriBuilder(url);
             LNURL.AppendPayloadToQuery(uriBuilder, "pr", bolt11);
+            LNURL.AppendPayloadToQuery(uriBuilder, "k1", K1);
             if (balanceNotify != null) LNURL.AppendPayloadToQuery(uriBuilder, "balanceNotify", balanceNotify.ToString());
 
             url = new Uri(uriBuilder.ToString());
