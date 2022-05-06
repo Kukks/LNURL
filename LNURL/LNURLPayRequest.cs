@@ -6,10 +6,12 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.JsonConverters;
 using LNURL.JsonConverters;
 using NBitcoin;
+using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -45,22 +47,102 @@ namespace LNURL
         /// <summary>
         ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/12.md
         /// </summary>
-        [JsonProperty("commentAllowed")]
+        [JsonProperty("commentAllowed", NullValueHandling = NullValueHandling.Ignore)]
         public int? CommentAllowed { get; set; }
 
         //https://github.com/fiatjaf/lnurl-rfc/blob/luds/19.md
-        [JsonProperty("withdrawLink")]
+        [JsonProperty("withdrawLink",NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(UriJsonConverter))]
         public Uri WithdrawLink { get; set; }
 
+        //https://github.com/fiatjaf/lnurl-rfc/blob/luds/18.md
+        [JsonProperty("payerData", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, PayerDataField> PayerData { get; set; }
+
+        public class PayerDataField
+        {
+            [JsonProperty("mandatory", DefaultValueHandling = DefaultValueHandling.Populate)]
+            public bool Mandatory { get; set; }
+        }
+
+        public bool VerifyPayerData(Dictionary<string, JObject> payerData) => VerifyPayerData(PayerData, payerData);
+        public static bool VerifyPayerData(Dictionary<string, PayerDataField> payerFields, Dictionary<string, JObject> payerData)
+        {
+            foreach (var payerDataField in payerFields)
+            {
+                if (!payerData.TryGetValue(payerDataField.Key, out var payerDataValue) && payerDataField.Value.Mandatory)
+                {
+                    return false;
+                }
+
+                if (payerDataValue is null && !payerDataField.Value.Mandatory)
+                {
+                    continue;
+                }
+
+                switch (payerDataField.Key)
+                {
+                    case "auth" when payerDataField.Value is AuthPayerDataField authPayerDataField:
+                    {
+                        if (!payerDataValue.TryGetValue("k1", out var k1) || k1.Value<string>() != authPayerDataField.K1)
+                        {
+                            return false;
+                        }
+                        if (!payerDataValue.TryGetValue("key", out var key))
+                        {
+                            return false;
+                        }
+                        if (!payerDataValue.TryGetValue("sig", out var sig))
+                        {
+                            return false;
+                        }
+
+                        var signature = ECDSASignature.FromDER(Encoders.Hex.DecodeData(sig.Value<string>()));
+                        var linkingKey = new PubKey(key.Value<string>());
+                        if (!LNAuthRequest.VerifyChallenge(signature, linkingKey,
+                                Encoders.Hex.DecodeData(k1.Value<string>())))
+                        {
+                            return false;
+                        }
+
+                        break;
+                    }
+                    case "pubkey" when !HexEncoder.IsWellFormed( payerDataValue.Value<string>()):
+                        return false;
+                    default:
+                    {
+                        if (string.IsNullOrEmpty(payerDataValue.Value<string>()))
+                        {
+                            return false;
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            return true;
+        }
+        
+        public class AuthPayerDataField : PayerDataField
+        {
+            
+            [JsonProperty("k1")] public string K1 { get; set; }
+        }
+
         public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-            HttpClient httpClient, string comment = null)
+            HttpClient httpClient, string comment = null, Dictionary<string, JObject> payerData = null)
         {
             var url = Callback;
             var uriBuilder = new UriBuilder(url);
             LNURL.AppendPayloadToQuery(uriBuilder, "amount", amount.MilliSatoshi.ToString());
             if (!string.IsNullOrEmpty(comment)) LNURL.AppendPayloadToQuery(uriBuilder, "comment", comment);
 
+            if (payerData?.Any(pair => pair.Value != null) is true)
+            {
+                LNURL.AppendPayloadToQuery(uriBuilder, "payerdata", HttpUtility.UrlEncode(JsonConvert.SerializeObject(payerData)));
+            }
+            
             url = new Uri(uriBuilder.ToString());
             var response = JObject.Parse(await httpClient.GetStringAsync(url));
             if (LNUrlStatusResponse.IsErrorResponse(response, out var error)) throw new LNUrlException(error.Reason);

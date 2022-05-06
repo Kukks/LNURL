@@ -50,7 +50,11 @@ namespace LNURL
         }
         public ECDSASignature SignChallenge(Key key)
         {
-            var messageBytes = Encoders.Hex.DecodeData(K1);
+            return SignChallenge(key, K1);
+        }
+        public static ECDSASignature SignChallenge(Key key, string k1)
+        {
+            var messageBytes = Encoders.Hex.DecodeData(k1);
             var messageHash = Hashes.DoubleSHA256(messageBytes);
             return key.Sign(messageHash);
         }
