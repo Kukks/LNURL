@@ -63,6 +63,8 @@ namespace LNURL
         {
             [JsonProperty("mandatory", DefaultValueHandling = DefaultValueHandling.Populate)]
             public bool Mandatory { get; set; }
+            [JsonExtensionData]
+            public IDictionary<string, JToken> AdditionalData { get; set; }
         }
 
         public bool VerifyPayerData(Dictionary<string, JObject> payerData) => VerifyPayerData(PayerData, payerData);
