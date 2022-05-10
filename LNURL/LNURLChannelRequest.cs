@@ -14,7 +14,7 @@ namespace LNURL
         [JsonConverter(typeof(NodeUriJsonConverter))]
         public NodeInfo Uri { get; set; }
 
-        [JsonProperty("uri")]
+        [JsonProperty("callback")]
         [JsonConverter(typeof(UriJsonConverter))]
         public Uri Callback { get; set; }
 
