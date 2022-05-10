@@ -234,6 +234,8 @@ namespace LNURL
             {
                 case "channelRequest":
                     return response.ToObject<LNURLChannelRequest>();
+                case "hostedChannelRequest":
+                    return response.ToObject<LNURLHostedChannelRequest>();
                 case "withdrawRequest":
                     return response.ToObject<LNURLWithdrawRequest>();
                 case "payRequest":
