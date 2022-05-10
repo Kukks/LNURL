@@ -43,7 +43,7 @@ namespace LNURL
         public Uri BalanceCheck { get; set; }
 
         //https://github.com/fiatjaf/lnurl-rfc/blob/luds/19.md
-        [JsonProperty("payLink")]
+        [JsonProperty("payLink", NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(UriJsonConverter))]
         public Uri PayLink { get; set; }
 
