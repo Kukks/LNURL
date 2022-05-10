@@ -67,8 +67,8 @@ namespace LNURL
             public IDictionary<string, JToken> AdditionalData { get; set; }
         }
 
-        public bool VerifyPayerData(Dictionary<string, JObject> payerData) => VerifyPayerData(PayerData, payerData);
-        public static bool VerifyPayerData(Dictionary<string, PayerDataField> payerFields, Dictionary<string, JObject> payerData)
+        public bool VerifyPayerData(Dictionary<string, JToken> payerData) => VerifyPayerData(PayerData, payerData);
+        public static bool VerifyPayerData(Dictionary<string, PayerDataField> payerFields, Dictionary<string, JToken> payerData)
         {
             foreach (var payerDataField in payerFields)
             {
@@ -86,15 +86,16 @@ namespace LNURL
                 {
                     case "auth" when payerDataField.Value is AuthPayerDataField authPayerDataField:
                     {
-                        if (!payerDataValue.TryGetValue("k1", out var k1) || k1.Value<string>() != authPayerDataField.K1)
+                        var payerDataValueJObj = payerDataValue as JObject;
+                        if (!payerDataValueJObj.TryGetValue("k1", out var k1) || k1.Value<string>() != authPayerDataField.K1)
                         {
                             return false;
                         }
-                        if (!payerDataValue.TryGetValue("key", out var key))
+                        if (!payerDataValueJObj.TryGetValue("key", out var key))
                         {
                             return false;
                         }
-                        if (!payerDataValue.TryGetValue("sig", out var sig))
+                        if (!payerDataValueJObj.TryGetValue("sig", out var sig))
                         {
                             return false;
                         }
