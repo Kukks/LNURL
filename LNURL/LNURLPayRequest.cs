@@ -67,8 +67,8 @@ namespace LNURL
             public IDictionary<string, JToken> AdditionalData { get; set; }
         }
 
-        public bool VerifyPayerData(Dictionary<string, JToken> payerData) => VerifyPayerData(PayerData, payerData);
-        public static bool VerifyPayerData(Dictionary<string, PayerDataField> payerFields, Dictionary<string, JToken> payerData)
+        public bool VerifyPayerData(Dictionary<string, JToken> payerData, bool strict = true) => VerifyPayerData(PayerData, payerData, strict);
+        public static bool VerifyPayerData(Dictionary<string, PayerDataField> payerFields, Dictionary<string, JToken> payerData, bool strict = true)
         {
             foreach (var payerDataField in payerFields)
             {
@@ -84,8 +84,17 @@ namespace LNURL
 
                 switch (payerDataField.Key)
                 {
-                    case "auth" when payerDataField.Value is AuthPayerDataField authPayerDataField:
+                    case "auth" :
                     {
+                        if (!(payerDataField.Value is AuthPayerDataField authPayerDataField))
+                        {
+                            authPayerDataField = new AuthPayerDataField()
+                            {
+                                Mandatory = payerDataField.Value.Mandatory,
+                                K1 = payerDataField.Value.AdditionalData["k1"].Value<string>(),
+                                AdditionalData = payerDataField.Value.AdditionalData
+                            };
+                        }
                         var payerDataValueJObj = payerDataValue as JObject;
                         if (!payerDataValueJObj.TryGetValue("k1", out var k1) || k1.Value<string>() != authPayerDataField.K1)
                         {
@@ -124,7 +133,7 @@ namespace LNURL
                 }
             }
 
-            return true;
+            return !strict || payerData.Keys.All(payerFields.ContainsKey);
         }
         
         public class AuthPayerDataField : PayerDataField
