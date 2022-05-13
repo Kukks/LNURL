@@ -1,7 +1,11 @@
 using System;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using NBitcoin;
+using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace LNURL.Tests
@@ -87,5 +91,63 @@ namespace LNURL.Tests
            Assert.True( LNAuthRequest.VerifyChallenge(sig, linkingKey.PubKey, Encoders.Hex.DecodeData(k1)));
 
         }
+
+        [Fact]
+        public async Task payerDataSerializerTest()
+        {
+            var req =
+                new LNURLPayRequest()
+                {
+                    PayerData = new LNURLPayRequest.LUD18PayerData()
+                    {
+                        Auth = new LNURLPayRequest.AuthPayerDataField()
+                        {
+                            K1 = Encoders.Hex.EncodeData(RandomUtils.GetBytes(32)),
+                            Mandatory = false,
+                        },
+                        Pubkey = new LNURLPayRequest.PayerDataField()
+                        {
+                            Mandatory = true
+                        },
+                        Name = new LNURLPayRequest.PayerDataField()
+                        {
+                        }
+                    }
+                };
+
+           req =  JsonConvert.DeserializeObject<LNURLPayRequest>(JsonConvert.SerializeObject(req));
+           Assert.NotNull(req.PayerData);
+           Assert.True(req.PayerData.Pubkey.Mandatory);
+           Assert.False(req.PayerData.Name.Mandatory);
+           Assert.False(req.PayerData.Auth.Mandatory);
+           Assert.Null(req.PayerData.Email);
+
+           var k = new Key();
+
+           var resp = new LNURLPayRequest.LUD18PayerDataResponse()
+           {
+               Auth = new LNURLPayRequest.LUD18AuthPayerDataResponse()
+               {
+                   K1 = req.PayerData.Auth.K1,
+                   Key = k.PubKey,
+                   Sig = k.Sign(Hashes.DoubleSHA256(Encoders.Hex.DecodeData(req.PayerData.Auth.K1)))
+
+               },
+
+           };
+           
+           resp =  JsonConvert.DeserializeObject<LNURLPayRequest.LUD18PayerDataResponse>(JsonConvert.SerializeObject(resp));
+           Assert.False(req.VerifyPayerData(resp));
+           resp.Pubkey = k.PubKey;
+           resp =  JsonConvert.DeserializeObject<LNURLPayRequest.LUD18PayerDataResponse>(JsonConvert.SerializeObject(resp));
+           Assert.True(req.VerifyPayerData(resp));
+           resp.Email = "test@test.com";
+           Assert.False(req.VerifyPayerData(resp));
+
+           resp.Email = null;
+           resp.Name = "sdasds";
+           Assert.True(req.VerifyPayerData(resp));
+        }
+        
     }
 }

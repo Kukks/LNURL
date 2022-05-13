@@ -13,6 +13,7 @@ using LNURL.JsonConverters;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
+using NBitcoin.JsonConverters;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -57,83 +58,73 @@ namespace LNURL
 
         //https://github.com/fiatjaf/lnurl-rfc/blob/luds/18.md
         [JsonProperty("payerData", NullValueHandling = NullValueHandling.Ignore)]
-        public Dictionary<string, PayerDataField> PayerData { get; set; }
+        public LUD18PayerData PayerData { get; set; }
 
         public class PayerDataField
         {
             [JsonProperty("mandatory", DefaultValueHandling = DefaultValueHandling.Populate)]
             public bool Mandatory { get; set; }
-            [JsonExtensionData]
-            public IDictionary<string, JToken> AdditionalData { get; set; }
         }
 
-        public bool VerifyPayerData(Dictionary<string, JToken> payerData, bool strict = true) => VerifyPayerData(PayerData, payerData, strict);
-        public static bool VerifyPayerData(Dictionary<string, PayerDataField> payerFields, Dictionary<string, JToken> payerData, bool strict = true)
+        public class LUD18PayerData
         {
-            foreach (var payerDataField in payerFields)
+            
+            [JsonProperty("name", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public PayerDataField Name { get; set; }
+            [JsonProperty("pubkey", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public PayerDataField Pubkey { get; set; }
+            [JsonProperty("email", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public PayerDataField Email { get; set; }
+            [JsonProperty("auth", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public AuthPayerDataField Auth { get; set; }
+        }
+
+        public class LUD18PayerDataResponse
+        {
+            [JsonProperty("name", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public string Name { get; set; }
+            [JsonProperty("pubkey", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            [JsonConverter(typeof(PubKeyJsonConverter))]
+            public PubKey Pubkey { get; set; }
+            [JsonProperty("email", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public string Email { get; set; }
+            [JsonProperty("auth", DefaultValueHandling = DefaultValueHandling.Ignore)]
+            public LUD18AuthPayerDataResponse Auth { get; set; }
+        }
+
+        public class LUD18AuthPayerDataResponse
+        {
+            [JsonProperty("key")]
+            [JsonConverter(typeof(PubKeyJsonConverter))]
+            public PubKey Key { get; set; }
+            [JsonProperty("k1")]
+            public string K1 { get; set; }
+            [JsonProperty("sig")]
+            [JsonConverter(typeof(SigJsonConverter))]
+            public ECDSASignature Sig { get; set; }
+            
+        }
+
+        public bool VerifyPayerData(LUD18PayerDataResponse response) => VerifyPayerData(PayerData, response);
+        public static bool VerifyPayerData(LUD18PayerData payerFields, LUD18PayerDataResponse payerData)
+        {
+            if ((payerFields.Name is null && !string.IsNullOrEmpty(payerData.Name)) ||
+                (payerFields.Name?.Mandatory is true && string.IsNullOrEmpty(payerData.Name)) ||
+                (payerFields.Pubkey is null && payerData.Pubkey is not null ) ||
+                (payerFields.Pubkey?.Mandatory is true &&   payerData.Pubkey is null) ||
+                (payerFields.Email is null && !string.IsNullOrEmpty(payerData.Email)) ||
+                (payerFields.Email?.Mandatory is true && string.IsNullOrEmpty(payerData.Email)) || 
+                (payerFields.Auth is null && payerData.Auth is not null) ||
+                (payerFields.Auth?.Mandatory is true && payerData.Auth  is null) ||
+                (payerFields.Auth?.K1 != payerData.Auth?.K1) ||
+                (!LNAuthRequest.VerifyChallenge(payerData.Auth.Sig, payerData.Auth.Key,
+                    Encoders.Hex.DecodeData(payerData.Auth?.K1))))
+                
             {
-                if (!payerData.TryGetValue(payerDataField.Key, out var payerDataValue) && payerDataField.Value.Mandatory)
-                {
-                    return false;
-                }
-
-                if (payerDataValue is null && !payerDataField.Value.Mandatory)
-                {
-                    continue;
-                }
-
-                switch (payerDataField.Key)
-                {
-                    case "auth" :
-                    {
-                        if (!(payerDataField.Value is AuthPayerDataField authPayerDataField))
-                        {
-                            authPayerDataField = new AuthPayerDataField()
-                            {
-                                Mandatory = payerDataField.Value.Mandatory,
-                                K1 = payerDataField.Value.AdditionalData["k1"].Value<string>(),
-                                AdditionalData = payerDataField.Value.AdditionalData
-                            };
-                        }
-                        var payerDataValueJObj = payerDataValue as JObject;
-                        if (!payerDataValueJObj.TryGetValue("k1", out var k1) || k1.Value<string>() != authPayerDataField.K1)
-                        {
-                            return false;
-                        }
-                        if (!payerDataValueJObj.TryGetValue("key", out var key))
-                        {
-                            return false;
-                        }
-                        if (!payerDataValueJObj.TryGetValue("sig", out var sig))
-                        {
-                            return false;
-                        }
-
-                        var signature = ECDSASignature.FromDER(Encoders.Hex.DecodeData(sig.Value<string>()));
-                        var linkingKey = new PubKey(key.Value<string>());
-                        if (!LNAuthRequest.VerifyChallenge(signature, linkingKey,
-                                Encoders.Hex.DecodeData(k1.Value<string>())))
-                        {
-                            return false;
-                        }
-
-                        break;
-                    }
-                    case "pubkey" when !HexEncoder.IsWellFormed( payerDataValue.Value<string>()):
-                        return false;
-                    default:
-                    {
-                        if (string.IsNullOrEmpty(payerDataValue.Value<string>()))
-                        {
-                            return false;
-                        }
-
-                        break;
-                    }
-                }
+                return false;
             }
 
-            return !strict || payerData.Keys.All(payerFields.ContainsKey);
+            return true;
         }
         
         public class AuthPayerDataField : PayerDataField
@@ -143,14 +134,14 @@ namespace LNURL
         }
 
         public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-            HttpClient httpClient, string comment = null, Dictionary<string, JObject> payerData = null)
+            HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null)
         {
             var url = Callback;
             var uriBuilder = new UriBuilder(url);
             LNURL.AppendPayloadToQuery(uriBuilder, "amount", amount.MilliSatoshi.ToString());
             if (!string.IsNullOrEmpty(comment)) LNURL.AppendPayloadToQuery(uriBuilder, "comment", comment);
 
-            if (payerData?.Any(pair => pair.Value != null) is true)
+            if (payerData is not null)
             {
                 LNURL.AppendPayloadToQuery(uriBuilder, "payerdata", HttpUtility.UrlEncode(JsonConvert.SerializeObject(payerData)));
             }
