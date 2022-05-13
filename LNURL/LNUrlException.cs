@@ -1,11 +1,10 @@
 ﻿using System;
 
-namespace LNURL
+namespace LNURL;
+
+public class LNUrlException : Exception
 {
-    public class LNUrlException : Exception
+    public LNUrlException(string message) : base(message)
     {
-        public LNUrlException(string message) : base(message)
-        {
-        }
     }
 }
