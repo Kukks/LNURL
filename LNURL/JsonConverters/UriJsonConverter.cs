@@ -29,7 +29,16 @@ public class UriJsonConverter : JsonConverter
 
     public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
     {
-        if (value != null)
-            writer.WriteValue(((Uri) value).AbsoluteUri);
+        switch (value)
+        {
+            case null:
+                return;
+            case string s:
+                writer.WriteValue(s);
+                break;
+            case Uri uri:
+                writer.WriteValue(uri.IsAbsoluteUri? uri.AbsoluteUri : uri.ToString());
+                break;
+        }
     }
 }
