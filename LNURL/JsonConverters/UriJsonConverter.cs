@@ -17,9 +17,15 @@ public class UriJsonConverter : JsonConverter
     {
         try
         {
-            return reader.TokenType == JsonToken.Null ? null :
+            var res = reader.TokenType == JsonToken.Null ? null :
                 Uri.TryCreate((string) reader.Value, UriKind.Absolute, out var result) ? result :
                 throw new JsonObjectException("Invalid Uri value", reader);
+            if (objectType == typeof(string))
+            {
+                return res?.ToString();
+            }
+
+            return res;
         }
         catch (InvalidCastException)
         {
