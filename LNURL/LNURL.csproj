@@ -7,7 +7,7 @@
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>LNURL protocol implementation in .NET Core</Description>
         <PackageTags>bitcoin lightning lnurl</PackageTags>
-        <PackageVersion>0.0.24</PackageVersion>
+        <PackageVersion>0.0.25</PackageVersion>
         <RepositoryUrl>https://github.com/Kukks/LNURL.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>

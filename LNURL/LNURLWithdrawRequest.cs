@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.JsonConverters;
@@ -49,7 +50,7 @@ public class LNURLWithdrawRequest
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/15.md
     public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient,
-        Uri balanceNotify = null)
+        Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
@@ -58,7 +59,7 @@ public class LNURLWithdrawRequest
         if (balanceNotify != null) LNURL.AppendPayloadToQuery(uriBuilder, "balanceNotify", balanceNotify.ToString());
 
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url));
+        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
 
         return response.ToObject<LNUrlStatusResponse>();
     }

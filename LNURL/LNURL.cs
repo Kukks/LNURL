@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -93,11 +94,16 @@ public class LNURL
     }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/16.md
-    public static async Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
+    public static Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
         HttpClient httpClient)
     {
+        return FetchPayRequestViaInternetIdentifier(identifier, httpClient, default);
+    }
+    public static async Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
+        HttpClient httpClient, CancellationToken cancellationToken)
+    {
         return (LNURLPayRequest) await FetchInformation(ExtractUriFromInternetIdentifier(identifier), "payRequest",
-            httpClient);
+            httpClient, cancellationToken);
     }
 
     public static Uri ExtractUriFromInternetIdentifier(string identifier)
@@ -123,12 +129,20 @@ public class LNURL
         return uriBuilder.Uri;
     }
 
-    public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient)
-    {
-        return await FetchInformation(lnUrl, null, httpClient);
-    }
 
-    public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
+    public static Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient)
+    {
+        return FetchInformation(lnUrl, httpClient, default);
+    }
+    public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient, CancellationToken cancellationToken)
+    {
+        return await FetchInformation(lnUrl, null, httpClient, cancellationToken);
+    }
+    public static Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
+    {
+        return FetchInformation(lnUrl, tag, httpClient, default);
+    }
+    public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient, CancellationToken cancellationToken)
     {
         try
         {
@@ -146,7 +160,7 @@ public class LNURL
         switch (tag)
         {
             case null:
-                response = JObject.Parse(await httpClient.GetStringAsync(lnUrl));
+                response = JObject.Parse(await httpClient.GetStringAsync(lnUrl, cancellationToken));
                 if (response.TryGetValue("tag", out var tagToken))
                 {
                     tag = tagToken.ToString();
@@ -164,7 +178,7 @@ public class LNURL
                 var callback = queryString.Get("callback");
                 if (k1 is null || minWithdrawable is null || maxWithdrawable is null || callback is null)
                 {
-                    response = JObject.Parse(await httpClient.GetStringAsync(lnUrl));
+                    response = JObject.Parse(await httpClient.GetStringAsync(lnUrl, cancellationToken));
                     return FetchInformation(response, tag);
                 }
 
@@ -193,7 +207,7 @@ public class LNURL
                 };
 
             default:
-                response = JObject.Parse(await httpClient.GetStringAsync(lnUrl));
+                response = JObject.Parse(await httpClient.GetStringAsync(lnUrl, cancellationToken));
                 return FetchInformation(response, tag);
         }
     }

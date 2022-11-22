@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Crypto;
@@ -33,21 +34,29 @@ public class LNAuthRequest
     [JsonConverter(typeof(StringEnumConverter))]
     public LNAuthRequestAction? Action { get; set; }
 
-    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient)
+    public Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient)
+    {
+        return SendChallenge(sig, key, httpClient, default);
+    }
+    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken)
     {
         var url = LNUrl;
         var uriBuilder = new UriBuilder(url);
         LNURL.AppendPayloadToQuery(uriBuilder, "sig", Encoders.Hex.EncodeData(sig.ToDER()));
         LNURL.AppendPayloadToQuery(uriBuilder, "key", key.ToHex());
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url));
+        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
         return response.ToObject<LNUrlStatusResponse>();
     }
 
     public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient)
     {
+        return SendChallenge(key, httpClient, default);
+    }
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken)
+    {
         var sig = SignChallenge(key);
-        return SendChallenge(sig, key.PubKey, httpClient);
+        return SendChallenge(sig, key.PubKey, httpClient, cancellationToken);
     }
 
     public ECDSASignature SignChallenge(Key key)
