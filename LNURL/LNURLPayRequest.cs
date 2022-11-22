@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using BTCPayServer.Lightning;
@@ -83,7 +84,7 @@ public class LNURLPayRequest
     }
 
     public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null)
+        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
@@ -95,7 +96,7 @@ public class LNURLPayRequest
                 HttpUtility.UrlEncode(JsonConvert.SerializeObject(payerData)));
 
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url));
+        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
         if (LNUrlStatusResponse.IsErrorResponse(response, out var error)) throw new LNUrlException(error.Reason);
 
         var result = response.ToObject<LNURLPayRequestCallbackResponse>();
