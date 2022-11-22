@@ -84,7 +84,7 @@ public class LNURLPayRequest
     }
 
     public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken)
+        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken = default)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
