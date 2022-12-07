@@ -6,12 +6,50 @@ using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace LNURL.Tests
 {
     public class UnitTest1
     {
+
+        [Fact]
+        public void CanHandlePayLinkEdgeCase()
+        {
+            // from https://github.com/btcpayserver/btcpayserver/issues/4393
+            var json = 
+                
+            "{"+
+            "    \"callback\": \"https://coincorner.io/lnurl/withdrawreq/auth/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx?picc_data=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\","+
+            "    \"defaultDescription\": \"CoinCorner Withdrawal ⚡️\","+
+            "    \"maxWithdrawable\": 363003000,"+
+            "    \"minWithdrawable\": 1000,"+
+            "    \"k1\": \"xxxxxxxxxx\","+
+            "    \"tag\": \"withdrawRequest\","+
+            "    \"payLink\": \"\"" +
+                "}";
+
+            var req = JsonConvert.DeserializeObject<LNURLWithdrawRequest>(json);
+            
+            Assert.Null(req.PayLink);
+            
+            json = 
+                
+                "{"+
+                "    \"callback\": \"https://coincorner.io/lnurl/withdrawreq/auth/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx?picc_data=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\","+
+                "    \"defaultDescription\": \"CoinCorner Withdrawal ⚡️\","+
+                "    \"maxWithdrawable\": 363003000,"+
+                "    \"minWithdrawable\": 1000,"+
+                "    \"k1\": \"xxxxxxxxxx\","+
+                "    \"tag\": \"withdrawRequest\""+
+                "}";
+
+            req = JsonConvert.DeserializeObject<LNURLWithdrawRequest>(json);
+            
+            Assert.Null(req.PayLink);
+        }
+        
         [Theory]
         [InlineData("kukks@btcpay.kukks.org", "https://btcpay.kukks.org/.well-known/lnurlp/kukks")]
         [InlineData("kukks@tor.onion","http://tor.onion/.well-known/lnurlp/kukks")]

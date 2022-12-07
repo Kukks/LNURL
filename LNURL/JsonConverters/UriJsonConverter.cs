@@ -9,7 +9,7 @@ public class UriJsonConverter : JsonConverter
 {
     public override bool CanConvert(Type objectType)
     {
-        return typeof(Uri).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo());
+        return typeof(Uri).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo()) || objectType == typeof(string);
     }
 
     public override object ReadJson(JsonReader reader, Type objectType, object existingValue,
@@ -18,6 +18,7 @@ public class UriJsonConverter : JsonConverter
         try
         {
             var res = reader.TokenType == JsonToken.Null ? null :
+                reader.TokenType == JsonToken.String && string.IsNullOrEmpty(reader.Value?.ToString()) ? null :
                 Uri.TryCreate((string) reader.Value, UriKind.Absolute, out var result) ? result :
                 throw new JsonObjectException("Invalid Uri value", reader);
             if (objectType == typeof(string))
