@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,8 +45,10 @@ public class LNAuthRequest
         LNURL.AppendPayloadToQuery(uriBuilder, "sig", Encoders.Hex.EncodeData(sig.ToDER()));
         LNURL.AppendPayloadToQuery(uriBuilder, "key", key.ToHex());
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
-        return response.ToObject<LNUrlStatusResponse>();
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+
+        return json.ToObject<LNUrlStatusResponse>();
     }
 
     public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient)
