@@ -61,7 +61,7 @@ public class LNAuthRequest
     public static ECDSASignature SignChallenge(Key key, string k1)
     {
         var messageBytes = Encoders.Hex.DecodeData(k1);
-        var messageHash = Hashes.DoubleSHA256(messageBytes);
+        var messageHash = new uint256(messageBytes);
         return key.Sign(messageHash);
     }
 
@@ -94,7 +94,7 @@ public class LNAuthRequest
 
     public static bool VerifyChallenge(ECDSASignature sig, PubKey expectedPubKey, byte[] expectedMessage)
     {
-        var messageHash = Hashes.DoubleSHA256(expectedMessage);
+        var messageHash = new uint256(expectedMessage);
         return expectedPubKey.Verify(messageHash, sig);
     }
 }
