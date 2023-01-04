@@ -1,12 +1,9 @@
 using System;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace LNURL.Tests
@@ -168,12 +165,10 @@ namespace LNURL.Tests
                {
                    K1 = req.PayerData.Auth.K1,
                    Key = k.PubKey,
-                   Sig = k.Sign(Hashes.DoubleSHA256(Encoders.Hex.DecodeData(req.PayerData.Auth.K1)))
-
+                   Sig = k.Sign(new uint256(Encoders.Hex.DecodeData(req.PayerData.Auth.K1)))
                },
-
            };
-           
+
            resp =  JsonConvert.DeserializeObject<LNURLPayRequest.LUD18PayerDataResponse>(JsonConvert.SerializeObject(resp));
            Assert.False(req.VerifyPayerData(resp));
            resp.Pubkey = k.PubKey;
@@ -186,6 +181,6 @@ namespace LNURL.Tests
            resp.Name = "sdasds";
            Assert.True(req.VerifyPayerData(resp));
         }
-        
+
     }
 }

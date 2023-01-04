@@ -96,10 +96,11 @@ public class LNURLPayRequest
                 HttpUtility.UrlEncode(JsonConvert.SerializeObject(payerData)));
 
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
-        if (LNUrlStatusResponse.IsErrorResponse(response, out var error)) throw new LNUrlException(error.Reason);
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        if (LNUrlStatusResponse.IsErrorResponse(json, out var error)) throw new LNUrlException(error.Reason);
 
-        var result = response.ToObject<LNURLPayRequestCallbackResponse>();
+        var result = json.ToObject<LNURLPayRequestCallbackResponse>();
         if (result.Verify(this, amount, network, out var invoice)) return result;
 
         throw new LNUrlException(

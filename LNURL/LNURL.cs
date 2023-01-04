@@ -154,17 +154,20 @@ public class LNURL
         }
 
         if (tag is null) tag = lnUrl.ParseQueryString().Get("tag");
-        JObject response;
+        JObject json;
         NameValueCollection queryString;
+        HttpResponseMessage response;
         string k1;
         switch (tag)
         {
             case null:
-                response = JObject.Parse(await httpClient.GetStringAsync(lnUrl, cancellationToken));
-                if (response.TryGetValue("tag", out var tagToken))
+                response = await httpClient.GetAsync(lnUrl, cancellationToken);
+                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+
+                if (json.TryGetValue("tag", out var tagToken))
                 {
                     tag = tagToken.ToString();
-                    return FetchInformation(response, tag);
+                    return FetchInformation(json, tag);
                 }
 
                 throw new LNUrlException("A tag identifying the LNURL endpoint was not received.");
@@ -178,8 +181,9 @@ public class LNURL
                 var callback = queryString.Get("callback");
                 if (k1 is null || minWithdrawable is null || maxWithdrawable is null || callback is null)
                 {
-                    response = JObject.Parse(await httpClient.GetStringAsync(lnUrl, cancellationToken));
-                    return FetchInformation(response, tag);
+                    response = await httpClient.GetAsync(lnUrl, cancellationToken);
+                    json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                    return FetchInformation(json, tag);
                 }
 
                 return new LNURLWithdrawRequest
@@ -207,8 +211,9 @@ public class LNURL
                 };
 
             default:
-                response = JObject.Parse(await httpClient.GetStringAsync(lnUrl, cancellationToken));
-                return FetchInformation(response, tag);
+                response = await httpClient.GetAsync(lnUrl, cancellationToken);
+                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                return FetchInformation(json, tag);
         }
     }
 
@@ -216,18 +221,13 @@ public class LNURL
     {
         if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
 
-        switch (tag)
+        return tag switch
         {
-            case "channelRequest":
-                return response.ToObject<LNURLChannelRequest>();
-            case "hostedChannelRequest":
-                return response.ToObject<LNURLHostedChannelRequest>();
-            case "withdrawRequest":
-                return response.ToObject<LNURLWithdrawRequest>();
-            case "payRequest":
-                return response.ToObject<LNURLPayRequest>();
-            default:
-                return response;
-        }
+            "channelRequest" => response.ToObject<LNURLChannelRequest>(),
+            "hostedChannelRequest" => response.ToObject<LNURLHostedChannelRequest>(),
+            "withdrawRequest" => response.ToObject<LNURLWithdrawRequest>(),
+            "payRequest" => response.ToObject<LNURLPayRequest>(),
+            _ => response
+        };
     }
 }

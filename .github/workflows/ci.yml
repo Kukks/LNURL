@@ -1,5 +1,12 @@
 name: 'Publish application'
-on: push
+on:
+  # Run the build for pushes and pull requests targeting master
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   build:
@@ -27,7 +34,7 @@ jobs:
           VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
           TAG_COMMIT: true
           TAG_FORMAT: v*
-        
+
       - name: Publish Github Package Registry
         if: ${{ github.ref == 'refs/heads/master' }} # Publish only when the push is on master
         uses: Rebel028/publish-nuget@v2.7.0

@@ -34,26 +34,20 @@ public class LNAuthRequest
     [JsonConverter(typeof(StringEnumConverter))]
     public LNAuthRequestAction? Action { get; set; }
 
-    public Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient)
-    {
-        return SendChallenge(sig, key, httpClient, default);
-    }
-    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken)
+    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)
     {
         var url = LNUrl;
         var uriBuilder = new UriBuilder(url);
         LNURL.AppendPayloadToQuery(uriBuilder, "sig", Encoders.Hex.EncodeData(sig.ToDER()));
         LNURL.AppendPayloadToQuery(uriBuilder, "key", key.ToHex());
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
-        return response.ToObject<LNUrlStatusResponse>();
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+
+        return json.ToObject<LNUrlStatusResponse>();
     }
 
-    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient)
-    {
-        return SendChallenge(key, httpClient, default);
-    }
-    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken)
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken = default)
     {
         var sig = SignChallenge(key);
         return SendChallenge(sig, key.PubKey, httpClient, cancellationToken);
@@ -67,7 +61,7 @@ public class LNAuthRequest
     public static ECDSASignature SignChallenge(Key key, string k1)
     {
         var messageBytes = Encoders.Hex.DecodeData(k1);
-        var messageHash = Hashes.DoubleSHA256(messageBytes);
+        var messageHash = new uint256(messageBytes);
         return key.Sign(messageHash);
     }
 
@@ -80,12 +74,12 @@ public class LNAuthRequest
         var k1 = serviceUrl.ParseQueryString().Get("k1");
         if (k1 is null) throw new ArgumentException(nameof(serviceUrl), "LNURL-Auth(LUD04) requires k1 to be provided");
 
-        byte[] k1Bytes = null;
+        byte[] k1Bytes;
         try
         {
             k1Bytes = Encoders.Hex.DecodeData(k1);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             throw new ArgumentException(nameof(serviceUrl), "LNURL-Auth(LUD04) requires k1 to be hex encoded");
         }
@@ -100,7 +94,7 @@ public class LNAuthRequest
 
     public static bool VerifyChallenge(ECDSASignature sig, PubKey expectedPubKey, byte[] expectedMessage)
     {
-        var messageHash = Hashes.DoubleSHA256(expectedMessage);
+        var messageHash = new uint256(expectedMessage);
         return expectedPubKey.Verify(messageHash, sig);
     }
 }

@@ -59,8 +59,9 @@ public class LNURLWithdrawRequest
         if (balanceNotify != null) LNURL.AppendPayloadToQuery(uriBuilder, "balanceNotify", balanceNotify.ToString());
 
         url = new Uri(uriBuilder.ToString());
-        var response = JObject.Parse(await httpClient.GetStringAsync(url, cancellationToken));
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
 
-        return response.ToObject<LNUrlStatusResponse>();
+        return json.ToObject<LNUrlStatusResponse>();
     }
 }
