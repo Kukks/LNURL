@@ -1,12 +1,9 @@
 using System;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace LNURL.Tests

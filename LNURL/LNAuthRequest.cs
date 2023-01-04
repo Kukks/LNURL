@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,11 +34,7 @@ public class LNAuthRequest
     [JsonConverter(typeof(StringEnumConverter))]
     public LNAuthRequestAction? Action { get; set; }
 
-    public Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient)
-    {
-        return SendChallenge(sig, key, httpClient, default);
-    }
-    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken)
+    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)
     {
         var url = LNUrl;
         var uriBuilder = new UriBuilder(url);
@@ -51,11 +47,7 @@ public class LNAuthRequest
         return json.ToObject<LNUrlStatusResponse>();
     }
 
-    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient)
-    {
-        return SendChallenge(key, httpClient, default);
-    }
-    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken)
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken = default)
     {
         var sig = SignChallenge(key);
         return SendChallenge(sig, key.PubKey, httpClient, cancellationToken);
@@ -82,12 +74,12 @@ public class LNAuthRequest
         var k1 = serviceUrl.ParseQueryString().Get("k1");
         if (k1 is null) throw new ArgumentException(nameof(serviceUrl), "LNURL-Auth(LUD04) requires k1 to be provided");
 
-        byte[] k1Bytes = null;
+        byte[] k1Bytes;
         try
         {
             k1Bytes = Encoders.Hex.DecodeData(k1);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             throw new ArgumentException(nameof(serviceUrl), "LNURL-Auth(LUD04) requires k1 to be hex encoded");
         }

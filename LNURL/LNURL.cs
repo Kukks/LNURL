@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
@@ -221,18 +221,13 @@ public class LNURL
     {
         if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
 
-        switch (tag)
+        return tag switch
         {
-            case "channelRequest":
-                return response.ToObject<LNURLChannelRequest>();
-            case "hostedChannelRequest":
-                return response.ToObject<LNURLHostedChannelRequest>();
-            case "withdrawRequest":
-                return response.ToObject<LNURLWithdrawRequest>();
-            case "payRequest":
-                return response.ToObject<LNURLPayRequest>();
-            default:
-                return response;
-        }
+            "channelRequest" => response.ToObject<LNURLChannelRequest>(),
+            "hostedChannelRequest" => response.ToObject<LNURLHostedChannelRequest>(),
+            "withdrawRequest" => response.ToObject<LNURLWithdrawRequest>(),
+            "payRequest" => response.ToObject<LNURLPayRequest>(),
+            _ => response
+        };
     }
 }
