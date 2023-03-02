@@ -1,18 +1,67 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using BTCPayServer.Lightning;
 using NBitcoin;
 using NBitcoin.Altcoins.Elements;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using NNostr.Client;
+using NNostr.Client.Protocols;
 using Xunit;
 
 namespace LNURL.Tests
 {
     public class UnitTest1
     {
+        [Fact]
+        public async Task LNURLOverNostr()
+        {
+            var key =  NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var pubKey = key.CreateXOnlyPubKey();
+            var nprofile = new NIP19.NosteProfileNote()
+            {
+                PubKey = pubKey.ToHex(),
+                Relays = new[] {"wss://r.x.com"}
+            };
+            var nprofileStr = nprofile.ToNIP19();
+            var evt = new NostrEvent()
+            {
+                Kind = 1,
+                PublicKey = pubKey.ToHex(),
+                CreatedAt = DateTimeOffset.Now,
+                Tags = new List<NostrEventTag>()
+            };
+            var uri = new Uri($"nostr:{nprofileStr}");
+            evt.Content = JObject.FromObject(new LNURLPayRequest()
+            {
+                Tag = "payRequest",
+                MaxSendable = LightMoney.Satoshis(1000),
+                MinSendable = LightMoney.Satoshis(1),
+                CommentAllowed = 200,
+                Metadata = JsonConvert.SerializeObject(new[] { new []{"text/plain", "hello world"}}),
+                Callback = uri
+            }).ToString(Formatting.Indented);
+
+            await evt.ComputeIdAndSignAsync(key);
+            var nevent = new NIP19.NostrEventNote()
+            {
+                EventId = evt.Id,
+                Relays = new[] {"wss://r.x.com"}
+            };
+            var neventStr = nevent.ToNIP19();
+            var bech32 = LNURL.EncodeUri(uri, "payRequest", true);
+            var url = LNURL.EncodeUri(uri, "payRequest", false);
+            var bech32Uri = LNURL.Parse(bech32.ToString(), out var tag);
+            Assert.Equal(bech32Uri, uri);
+            
+        }
+
+
         [Fact]
         public void CanHandlePayLinkEdgeCase()
         {

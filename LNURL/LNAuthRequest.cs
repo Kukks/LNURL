@@ -34,23 +34,38 @@ public class LNAuthRequest
     [JsonConverter(typeof(StringEnumConverter))]
     public LNAuthRequestAction? Action { get; set; }
 
-    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)
+    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key,
+        ILNURLCommunicator lnurlCommunicator, CancellationToken cancellationToken = default)
     {
         var url = LNUrl;
         var uriBuilder = new UriBuilder(url);
         LNURL.AppendPayloadToQuery(uriBuilder, "sig", Encoders.Hex.EncodeData(sig.ToDER()));
         LNURL.AppendPayloadToQuery(uriBuilder, "key", key.ToHex());
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+
+        var json = await lnurlCommunicator.SendRequest(url, cancellationToken);
 
         return json.ToObject<LNUrlStatusResponse>();
     }
 
-    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken = default)
+    public Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient,
+        CancellationToken cancellationToken = default)
+    {
+        return SendChallenge(sig, key, new LNURLCompositeCommunicator(httpClient), cancellationToken);
+    }
+
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient,
+        CancellationToken cancellationToken = default)
     {
         var sig = SignChallenge(key);
         return SendChallenge(sig, key.PubKey, httpClient, cancellationToken);
+    }
+
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, ILNURLCommunicator lnurlCommunicator,
+        CancellationToken cancellationToken = default)
+    {
+        var sig = SignChallenge(key);
+        return SendChallenge(sig, key.PubKey, lnurlCommunicator, cancellationToken);
     }
 
     public ECDSASignature SignChallenge(Key key)

@@ -24,7 +24,7 @@ namespace LNURL;
 /// </summary>
 public class LNURLPayRequest
 {
-    [JsonProperty("callback")]
+    [JsonProperty("callback", NullValueHandling = NullValueHandling.Ignore)]
     [JsonConverter(typeof(UriJsonConverter))]
     public Uri Callback { get; set; }
 
@@ -91,8 +91,15 @@ public class LNURLPayRequest
         return true;
     }
 
+    public Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
+        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null,
+        CancellationToken cancellationToken = default)
+    {
+        return SendRequest(amount, network, new LNURLCompositeCommunicator(httpClient), comment, payerData,
+            cancellationToken);
+    }
     public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken = default)
+        ILNURLCommunicator lnurlCommunicator, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken = default)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
@@ -104,8 +111,7 @@ public class LNURLPayRequest
                 HttpUtility.UrlEncode(JsonConvert.SerializeObject(payerData)));
 
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var json = await lnurlCommunicator.SendRequest(url, cancellationToken);
         if (LNUrlStatusResponse.IsErrorResponse(json, out var error)) throw new LNUrlException(error.Reason);
 
         var result = json.ToObject<LNURLPayRequestCallbackResponse>();
