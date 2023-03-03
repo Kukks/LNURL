@@ -18,6 +18,61 @@ namespace LNURL.Tests
 {
     public class UnitTest1
     {
+[Fact]
+        public async Task LNURLOverNostrScenario()
+        {
+            var merchantKey =  NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+
+            var helper = new LNURLNostrHelper(merchantKey, new []{ new Uri("wss://localhost:5001")}, async collection =>
+            {
+                var amount = collection?.Get("amount");
+                if (amount is not null && long.TryParse(amount, out var lamount))
+                {
+                    return JObject.FromObject(new LNURLPayRequest.LNURLPayRequestCallbackResponse()
+                    {
+                        Pr =
+                            "lnbc20u1pvjluezhp58yjmdan79s6qqdhdzgynm4zwqd5d7xmw5fk98klysy043l2ahrqspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqfppqw508d6qejxtdg4y5r3zarvary0c5xw7kxqrrsssp5m6kmam774klwlh4dhmhaatd7al02m0h0m6kmam774klwlh4dhmhs9qypqqqcqpf3cwux5979a8j28d4ydwahx00saa68wq3az7v9jdgzkghtxnkf3z5t7q5suyq2dl9tqwsap8j0wptc82cpyvey9gf6zyylzrm60qtcqsq7egtsq"
+                    });
+                }
+
+                return JObject.FromObject(new LNURLPayRequest()
+                {
+                    Tag = "payRequest",
+                    MinSendable = 0,
+                    MaxSendable = new LightMoney(10000000)
+                });
+
+            });
+            
+            //subscribe on nostr to lnurl filter
+            var merchantNostrClient = new NostrClient(new Uri("wss://localhost:5001"));
+            await merchantNostrClient.CreateSubscription("lnurl-subscription", new[] {helper.Filter});
+            merchantNostrClient.EventsReceived+= async (sender, events) =>
+            {
+                
+                foreach (var @event in events.events)
+                {
+                    var response = await helper.HandleIncomingRequest(@event);
+                    if (response is not null)
+                    {
+                        await merchantNostrClient.PublishEvent(response);
+                    }
+                }
+            };
+            await merchantNostrClient.ConnectAndWaitUntilConnected();
+            _ = merchantNostrClient.ListenForMessages();
+            //advertise the service
+            var lnurl = helper.GetLNURL("payRequest");
+            
+            
+            
+            var lnurlCommunicator = new LNURLCompositeCommunicator();
+            var payRequest = Assert.IsType<LNURLPayRequest>(await LNURL.FetchInformation(lnurl, null, lnurlCommunicator, CancellationToken.None));
+            var response = await payRequest.SendRequest(new LightMoney(1000), Network.Main, lnurlCommunicator,"comment sent",null, CancellationToken.None);
+            Assert.Equal("lnbc20u1pvjluezhp58yjmdan79s6qqdhdzgynm4zwqd5d7xmw5fk98klysy043l2ahrqspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqfppqw508d6qejxtdg4y5r3zarvary0c5xw7kxqrrsssp5m6kmam774klwlh4dhmhaatd7al02m0h0m6kmam774klwlh4dhmhs9qypqqqcqpf3cwux5979a8j28d4ydwahx00saa68wq3az7v9jdgzkghtxnkf3z5t7q5suyq2dl9tqwsap8j0wptc82cpyvey9gf6zyylzrm60qtcqsq7egtsq",response.Pr);
+
+        }
+        
         [Fact]
         public async Task LNURLOverNostr()
         {

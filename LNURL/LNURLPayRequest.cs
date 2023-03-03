@@ -187,13 +187,13 @@ public class LNURLPayRequest
         /// <summary>
         ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/11.md
         /// </summary>
-        [JsonProperty("disposable")]
+        [JsonProperty("disposable", NullValueHandling = NullValueHandling.Ignore)]
         public bool? Disposable { get; set; }
 
         /// <summary>
         ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/09.md
         /// </summary>
-        [JsonProperty("successAction")]
+        [JsonProperty("successAction", NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(LNURLPayRequestSuccessActionJsonConverter))]
         public ILNURLPayRequestSuccessAction SuccessAction { get; set; }
 

@@ -4,9 +4,11 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Formatting;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NBitcoin;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL;
@@ -55,7 +57,7 @@ public class LNURL
         if (Uri.TryCreate(lnurl, UriKind.Absolute, out var lud17Uri) &&
             SchemeTagMapping.TryGetValue(lud17Uri.Scheme.ToLowerInvariant(), out tag))
             return new Uri(lud17Uri.ToString()
-                .Replace(lud17Uri.Scheme + ":", lud17Uri.IsOnion() ? "http:" : "https:"));
+                .Replace(lud17Uri.Scheme + ":", lud17Uri.Host.StartsWith("nprofile1")? "nostr:": lud17Uri.IsOnion() ? "http:" : "https:"));
 
         throw new FormatException("LNURL uses bech32 and 'lnurl' as the hrp (LUD1) or an lnurl LUD17 scheme. ");
     }

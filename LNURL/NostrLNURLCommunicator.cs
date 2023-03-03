@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NBitcoin;
@@ -32,12 +31,12 @@ public class NostrLNURLCommunicator: ILNURLCommunicator
         {
             
             var  evt = await GetLNURLNostrEventThroughNip4(_nostrClient?? new NostrClient(new Uri(nosteProfileNote.Relays.First())),nosteProfileNote,lnurl.Query, cancellationToken);
-            return JObject.Parse(evt.Content);
+            return JObject.Parse(evt);
         };
         
         throw new NotSupportedException("the nostr Uri needs to be an nprofile");
     }
-    private static async Task<NostrEvent> GetLNURLNostrEventThroughNip4(NostrClient nostrClient,
+    private static async Task<string> GetLNURLNostrEventThroughNip4(NostrClient nostrClient,
         NIP19.NosteProfileNote nostrProfileNote, string content, CancellationToken cancellationToken)
     {
         var tmpKey = ECPrivKey.Create(RandomUtils.GetBytes(32));
@@ -63,28 +62,28 @@ public class NostrLNURLCommunicator: ILNURLCommunicator
 
         var filterId = "event-filter-" +Guid.NewGuid();
 
-        var tcs = new TaskCompletionSource<NostrEvent>(cancellationToken);
-        nostrClient.EventsReceived += (_, args) =>
+        var tcs = new TaskCompletionSource<string>(cancellationToken);
+        nostrClient.EventsReceived += async (_, args) =>
         {
             if (args.subscriptionId != filterId) return;
             var matchedEvent =
                 args.events.FirstOrDefault(evt =>
-                    evt.PublicKey == lnurlRequestEvent.PublicKey &&
-                    evt.GetTaggedData("p").Any(s => s == lnurlRequestEvent.PublicKey) &&
-                    evt.GetTaggedData("e").Any(s => s == lnurlRequestEvent.Id)
+                    evt.PublicKey == nostrProfileNote.PubKey &&
+                    evt.GetTaggedData("p").Any(s => s == lnurlRequestEvent.PublicKey)
                 );
             if (matchedEvent != null)
-                tcs.SetResult(matchedEvent);
+            {
+                tcs.SetResult(await matchedEvent.DecryptNip04EventAsync(tmpKey));
+            }
         };
         var filter = new NostrSubscriptionFilter()
         {
             Authors = new[] {nostrProfileNote.PubKey},
-            PublicKey = new[] {lnurlRequestEvent.PublicKey},
-            EventId = new[] {lnurlRequestEvent.Id}
+            ReferencedPublicKeys = new[] {lnurlRequestEvent.PublicKey}
         };
+        await nostrClient.ConnectAndWaitUntilConnected(cancellationToken);
         await nostrClient.CreateSubscription(filterId, new[] {filter}, cancellationToken);
         await nostrClient.PublishEvent(lnurlRequestEvent, cancellationToken);
-        await nostrClient.ConnectAndWaitUntilConnected(cancellationToken);
         _ = nostrClient.ListenForMessages();
         try
         {
