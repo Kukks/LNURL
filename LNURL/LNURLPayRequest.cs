@@ -60,6 +60,14 @@ public class LNURLPayRequest
     [JsonProperty("payerData", NullValueHandling = NullValueHandling.Ignore)]
     public LUD18PayerData PayerData { get; set; }
 
+    [JsonExtensionData] public IDictionary<string, JToken> AdditionalData { get; set; }
+    //https://github.com/nostr-protocol/nips/blob/master/57.md
+    [JsonProperty("nostrPubkey", NullValueHandling = NullValueHandling.Ignore)]
+    public string? NostrPubkey { get; set; }
+    //https://github.com/nostr-protocol/nips/blob/master/57.md
+    [JsonProperty("allowsNostr", NullValueHandling = NullValueHandling.Ignore)]
+    public bool? AllowsNostr { get; set; }
+
     public bool VerifyPayerData(LUD18PayerDataResponse response)
     {
         return VerifyPayerData(PayerData, response);
