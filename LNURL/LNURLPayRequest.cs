@@ -194,6 +194,11 @@ public class LNURLPayRequest
         public bool Verify(LNURLPayRequest request, LightMoney expectedAmount, Network network,
             out BOLT11PaymentRequest bolt11PaymentRequest)
         {
+            if (string.IsNullOrEmpty(Pr))
+            {
+                bolt11PaymentRequest = null;
+                return false;
+            }
             if (_paymentRequest != null)
                 bolt11PaymentRequest = _paymentRequest;
             else if (!BOLT11PaymentRequest.TryParse(Pr, out bolt11PaymentRequest, network))
