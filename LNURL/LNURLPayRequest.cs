@@ -192,7 +192,7 @@ public class LNURLPayRequest
         public ILNURLPayRequestSuccessAction SuccessAction { get; set; }
 
         public bool Verify(LNURLPayRequest request, LightMoney expectedAmount, Network network,
-            out BOLT11PaymentRequest bolt11PaymentRequest)
+            out BOLT11PaymentRequest bolt11PaymentRequest, bool verifyDescriptionHash = false)
         {
             if (string.IsNullOrEmpty(Pr))
             {
@@ -206,8 +206,8 @@ public class LNURLPayRequest
             else
                 _paymentRequest = bolt11PaymentRequest;
 
-            return _paymentRequest.MinimumAmount == expectedAmount &&
-                   _paymentRequest.VerifyDescriptionHash(request.Metadata);
+            return _paymentRequest.MinimumAmount == expectedAmount && (!verifyDescriptionHash ||
+                   _paymentRequest.VerifyDescriptionHash(request.Metadata));
         }
 
         public BOLT11PaymentRequest GetPaymentRequest(Network network)
