@@ -47,9 +47,19 @@ public class LNURLWithdrawRequest
     [JsonProperty("payLink", NullValueHandling = NullValueHandling.Ignore)]
     [JsonConverter(typeof(UriJsonConverter))]
     public Uri PayLink { get; set; }
+    
+    //https://github.com/bitcoin-ring/luds/blob/withdraw-pin/21.md
+    [JsonProperty("pinLimit", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonConverter(typeof(LightMoneyJsonConverter))]
+    public LightMoney PinLimit { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/15.md
-    public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient,
+    public Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient,
+        Uri balanceNotify = null, CancellationToken cancellationToken = default)
+    {
+        return SendRequest(bolt11, httpClient, null, balanceNotify, cancellationToken);
+    }    
+    public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
         var url = Callback;
@@ -57,6 +67,7 @@ public class LNURLWithdrawRequest
         LNURL.AppendPayloadToQuery(uriBuilder, "pr", bolt11);
         LNURL.AppendPayloadToQuery(uriBuilder, "k1", K1);
         if (balanceNotify != null) LNURL.AppendPayloadToQuery(uriBuilder, "balanceNotify", balanceNotify.ToString());
+        if (pin != null) LNURL.AppendPayloadToQuery(uriBuilder, "pin", pin);
 
         url = new Uri(uriBuilder.ToString());
         var response = await httpClient.GetAsync(url, cancellationToken);
