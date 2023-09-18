@@ -18,7 +18,7 @@ namespace LNURL
         /// <param name="aesKey">The AES key for decryption.</param>
         /// <param name="error">Outputs an error string if extraction fails.</param>
         /// <returns>A tuple containing the UID and counter if successful; null otherwise.</returns>
-        public static (string uid, uint counter)? ExtractBoltCardFromRequest(Uri requestUri, byte[] aesKey,
+        public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr, byte[] c)? ExtractBoltCardFromRequest(Uri requestUri, byte[] aesKey,
             out string error)
         {
             var query = requestUri.ParseQueryString();
@@ -68,7 +68,7 @@ namespace LNURL
             aes.Key = aesKey;
             aes.IV = new byte[16]; // assuming IV is zeros. Adjust if needed.
             aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.PKCS7;
+            aes.Padding = PaddingMode.None;
 
             var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
 
@@ -88,7 +88,7 @@ namespace LNURL
             var c = (uint) (ctr[2] << 16 | ctr[1] << 8 | ctr[0]);
             var uidStr = BitConverter.ToString(uid).Replace("-", "").ToLower();
             error = null;
-            return (uidStr, c);
+            return (uidStr, c, uid, ctr, cRaw );
         }
 
         private static byte[] AesEncrypt(byte[] key, byte[] iv, byte[] data)
@@ -172,6 +172,19 @@ namespace LNURL
 
             return HashValue;
         }
+        
+        private static byte[] GetSunMac(byte[] key, byte[] sv2) {
+            var cmac1 = AesCmac(key, sv2);
+            var cmac2 = AesCmac(cmac1, Array.Empty<byte>());
+
+            var  halfMac = new byte[cmac2.Length / 2];
+            for (var  i = 1; i < cmac2.Length; i += 2)
+            {
+                halfMac[i >> 1] = cmac2[i];
+            }
+
+            return halfMac;
+        }
 
         /// <summary>
         /// Verifies the CMAC for given UID, counter, key, and CMAC data.
@@ -199,7 +212,7 @@ namespace LNURL
 
             try
             {
-                byte[] computedCmac = AesCmac(k2CmacKey, sv2);
+                byte[] computedCmac = GetSunMac(k2CmacKey, sv2);
 
                 if (computedCmac.Length != cmac.Length)
                 {
@@ -207,13 +220,10 @@ namespace LNURL
                     return false;
                 }
 
-                for (int i = 0; i < computedCmac.Length; i++)
+                if (!computedCmac.SequenceEqual(cmac))
                 {
-                    if (computedCmac[i] != cmac[i])
-                    {
-                        error = "CMAC verification failed.";
-                        return false;
-                    }
+                    error = "CMAC verification failed.";
+                    return false;
                 }
 
                 error = null;

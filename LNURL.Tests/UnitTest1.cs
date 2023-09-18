@@ -182,5 +182,23 @@ namespace LNURL.Tests
            Assert.True(req.VerifyPayerData(resp));
         }
 
+[Fact]
+        public async Task CanUseBoltCardHelper()
+        {
+            var key = Convert.FromHexString("0c3b25d92b38ae443229dd59ad34b85d");
+            var cmacKey = Convert.FromHexString("b45775776cb224c75bcde7ca3704e933");
+            var result = BoltCardHelper.ExtractBoltCardFromRequest(
+                new Uri("https://test.com?p=4E2E289D945A66BB13377A728884E867&c=E19CCB1FED8892CE"),
+                key, out var error);
+            
+            Assert.Null(error);
+            Assert.NotNull(result);
+            Assert.Equal((uint)3, result.Value.counter);
+            Assert.Equal("04996c6a926980", result.Value.uid);
+            Assert.True(BoltCardHelper.CheckCmac(result.Value.rawUid, result.Value.rawCtr, cmacKey, result.Value.c,
+                out error));
+
+        }
+
     }
 }
