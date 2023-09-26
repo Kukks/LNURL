@@ -248,5 +248,30 @@ namespace LNURL.Tests
                 }
             }
         }
+        //from https://github.com/boltcard/boltcard/blob/7745c9f20d5ad0129cb4b3fc534441038e79f5e6/docs/TEST_VECTORS.md
+        [Theory]
+        [InlineData("4E2E289D945A66BB13377A728884E867", "E19CCB1FED8892CE", "04996c6a926980", 3)]
+        [InlineData("00F48C4F8E386DED06BCDC78FA92E2FE", "66B4826EA4C155B4", "04996c6a926980", 5)]
+        [InlineData("0DBF3C59B59B0638D60B5842A997D4D1", "CC61660C020B4D96", "04996c6a926980", 7)]
+        public void TestDecryptAndValidate(string pValueHex, string cValueHex, string expectedUidHex, uint expectedCtr)
+        {
+                
+            var aesDecryptKey = Convert.FromHexString("0c3b25d92b38ae443229dd59ad34b85d");
+            var aesCmacKey = Convert.FromHexString("b45775776cb224c75bcde7ca3704e933");
+            byte[] pValue = Convert.FromHexString(pValueHex);
+            byte[] cValue = Convert.FromHexString(cValueHex);
+
+            // Decrypt p value
+            var res = BoltCardHelper.ExtractUidAndCounterFromP(pValue, aesDecryptKey, out _);
+
+            // Check UID and counter
+            Assert.Equal(expectedUidHex, res.Value.uid);
+            Assert.Equal(expectedCtr, res.Value.counter);
+
+            // Validate CMAC
+            var cmacIsValid = BoltCardHelper.CheckCmac(res.Value.rawUid, res.Value.rawCtr, aesCmacKey, cValue, out _);
+            Assert.True(cmacIsValid, "CMAC validation failed");
+        }
+
     }
 }
