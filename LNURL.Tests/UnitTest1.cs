@@ -1,6 +1,9 @@
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using NBitcoin;
+using NBitcoin.Altcoins.Elements;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
@@ -185,6 +188,65 @@ namespace LNURL.Tests
             Assert.Equal("04996c6a926980", result.Value.uid);
             Assert.True(BoltCardHelper.CheckCmac(result.Value.rawUid, result.Value.rawCtr, cmacKey, result.Value.c,
                 out error));
+
+            var manualP = BoltCardHelper.CreatePValue(key, result.Value.counter, result.Value.uid);
+            var manualPResult = BoltCardHelper.ExtractUidAndCounterFromP(manualP, key, out error);
+            Assert.Null(error);
+            Assert.NotNull(manualPResult);
+            Assert.Equal((uint) 3, manualPResult.Value.counter);
+            Assert.Equal("04996c6a926980", manualPResult.Value.uid);
+
+            var manualC = BoltCardHelper.CreateCValue(result.Value.rawUid, result.Value.rawCtr, cmacKey);
+            Assert.Equal(result.Value.c, manualC);
+        }
+
+        [Fact]
+        public async Task DeterministicCards()
+        {
+            var masterSeed = RandomUtils.GetBytes(64);
+            var masterSeedSlip21 = Slip21Node.FromSeed(masterSeed);
+
+            var i = Random.Shared.Next(0, 10000);
+            var k1 = masterSeedSlip21.DeriveChild(i + "k1").Key.ToBytes().Take(16).ToArray();
+            var k2 = masterSeedSlip21.DeriveChild(i + "k2").Key.ToBytes().Take(16).ToArray();
+
+            var counter = (uint) Random.Shared.Next(0, 1000);
+            var uid = Convert.ToHexString(RandomUtils.GetBytes(7));
+            var pParam = Convert.ToHexString(BoltCardHelper.CreatePValue(k1, counter, uid));
+            var cParam = Convert.ToHexString(BoltCardHelper.CreateCValue(uid, counter, k2));
+            var lnurlw = $"https://test.com?p={pParam}&c={cParam}";
+
+            var result = BoltCardHelper.ExtractBoltCardFromRequest(new Uri(lnurlw), k1, out var error);
+            Assert.Null(error);
+            Assert.NotNull(result);
+            Assert.Equal(uid.ToLowerInvariant(), result.Value.uid.ToLowerInvariant());
+            Assert.Equal(counter, result.Value.counter);
+            Assert.True(BoltCardHelper.CheckCmac(result.Value.rawUid, result.Value.rawCtr, k2, result.Value.c,
+                out error));
+            Assert.Null(error);
+
+
+            for (int j = 0; j <= 10000; j++)
+            {
+                var brutek1 = masterSeedSlip21.DeriveChild(j + "k1").Key.ToBytes().Take(16).ToArray();
+                var brutek2 = masterSeedSlip21.DeriveChild(j + "k2").Key.ToBytes().Take(16).ToArray();
+                try
+                {
+                    var bruteResult = BoltCardHelper.ExtractBoltCardFromRequest(new Uri(lnurlw), brutek1, out error);
+                    Assert.Null(error);
+                    Assert.NotNull(bruteResult);
+                    Assert.Equal(uid.ToLowerInvariant(), bruteResult.Value.uid.ToLowerInvariant());
+                    Assert.Equal(counter, bruteResult.Value.counter);
+                    Assert.True(BoltCardHelper.CheckCmac(bruteResult.Value.rawUid, bruteResult.Value.rawCtr, brutek2,
+                        bruteResult.Value.c, out error));
+                    Assert.Null(error);
+
+                    break;
+                }
+                catch (Exception e)
+                {
+                }
+            }
         }
     }
 }

@@ -11,56 +11,25 @@ namespace LNURL
     {
         private const int AES_BLOCK_SIZE = 16;
 
-        /// <summary>
-        /// Extracts BoltCard information from a given request URI.
-        /// </summary>
-        /// <param name="requestUri">The URI containing BoltCard data.</param>
-        /// <param name="aesKey">The AES key for decryption.</param>
-        /// <param name="error">Outputs an error string if extraction fails.</param>
-        /// <returns>A tuple containing the UID and counter if successful; null otherwise.</returns>
-        public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr, byte[] c)? ExtractBoltCardFromRequest(Uri requestUri, byte[] aesKey,
-            out string error)
+
+        public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr)? ExtractUidAndCounterFromP(string pHex,
+            byte[] aesKey, out string? error)
         {
-            var query = requestUri.ParseQueryString();
-
-            var pParam = query.Get("p");
-            if (pParam is null)
-            {
-                error = "p parameter is missing";
-                return null;
-            }
-
-            var cParam = query.Get("c");
-
-            if (cParam is null)
-            {
-                error = "c parameter is missing";
-                return null;
-            }
-
-            if (!HexEncoder.IsWellFormed(pParam))
+            if (!HexEncoder.IsWellFormed(pHex))
             {
                 error = "p parameter is not hex";
                 return null;
             }
 
-            if (!HexEncoder.IsWellFormed(cParam))
-            {
-                error = "c parameter is not hex";
-                return null;
-            }
+            return ExtractUidAndCounterFromP(Convert.FromHexString(pHex), aesKey, out error);
+        }
 
-            var pRaw = Convert.FromHexString(pParam);
-            var cRaw = Convert.FromHexString(cParam);
-            if (pRaw.Length != 16)
+        public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr)? ExtractUidAndCounterFromP(byte[] p,
+            byte[] aesKey, out string? error)
+        {
+            if (p.Length != 16)
             {
                 error = "p parameter length not valid";
-                return null;
-            }
-
-            if (cRaw.Length != 8)
-            {
-                error = "c parameter length not valid";
                 return null;
             }
 
@@ -72,10 +41,10 @@ namespace LNURL
 
             var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
 
-            using var memoryStream = new System.IO.MemoryStream(pRaw);
+            using var memoryStream = new System.IO.MemoryStream(p);
             using var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read);
             using var reader = new System.IO.BinaryReader(cryptoStream);
-            var decryptedPData = reader.ReadBytes(pRaw.Length);
+            var decryptedPData = reader.ReadBytes(p.Length);
             if (decryptedPData[0] != 0xC7)
             {
                 error = "decrypted data not starting with 0xC7";
@@ -88,7 +57,60 @@ namespace LNURL
             var c = (uint) (ctr[2] << 16 | ctr[1] << 8 | ctr[0]);
             var uidStr = BitConverter.ToString(uid).Replace("-", "").ToLower();
             error = null;
-            return (uidStr, c, uid, ctr, cRaw );
+
+            return (uidStr, c, uid, ctr);
+        }
+
+        /// <summary>
+        /// Extracts BoltCard information from a given request URI.
+        /// </summary>
+        /// <param name="requestUri">The URI containing BoltCard data.</param>
+        /// <param name="aesKey">The AES key for decryption.</param>
+        /// <param name="error">Outputs an error string if extraction fails.</param>
+        /// <returns>A tuple containing the UID and counter if successful; null otherwise.</returns>
+        public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr, byte[] c)? ExtractBoltCardFromRequest(
+            Uri requestUri, byte[] aesKey,
+            out string error)
+        {
+            var query = requestUri.ParseQueryString();
+
+            var pParam = query.Get("p");
+            if (pParam is null)
+            {
+                error = "p parameter is missing";
+                return null;
+            }
+
+            var pResult = ExtractUidAndCounterFromP(pParam, aesKey, out error);
+            if (error is not null || pResult is null)
+            {
+                return null;
+            }
+
+            var cParam = query.Get("c");
+
+            if (cParam is null)
+            {
+                error = "c parameter is missing";
+                return null;
+            }
+
+
+            if (!HexEncoder.IsWellFormed(cParam))
+            {
+                error = "c parameter is not hex";
+                return null;
+            }
+
+            var cRaw = Convert.FromHexString(cParam);
+            if (cRaw.Length != 8)
+            {
+                error = "c parameter length not valid";
+                return null;
+            }
+
+
+            return (pResult.Value.uid, pResult.Value.counter, pResult.Value.rawUid, pResult.Value.rawCtr, cRaw);
         }
 
         private static byte[] AesEncrypt(byte[] key, byte[] iv, byte[] data)
@@ -172,13 +194,14 @@ namespace LNURL
 
             return HashValue;
         }
-        
-        private static byte[] GetSunMac(byte[] key, byte[] sv2) {
+
+        private static byte[] GetSunMac(byte[] key, byte[] sv2)
+        {
             var cmac1 = AesCmac(key, sv2);
             var cmac2 = AesCmac(cmac1, Array.Empty<byte>());
 
-            var  halfMac = new byte[cmac2.Length / 2];
-            for (var  i = 1; i < cmac2.Length; i += 2)
+            var halfMac = new byte[cmac2.Length / 2];
+            for (var i = 1; i < cmac2.Length; i += 2)
             {
                 halfMac[i >> 1] = cmac2[i];
             }
@@ -203,7 +226,7 @@ namespace LNURL
                 return false;
             }
 
-            byte[] sv2 = new byte[AES_BLOCK_SIZE]
+            byte[] sv2 = new byte[]
             {
                 0x3c, 0xc3, 0x00, 0x01, 0x00, 0x80,
                 uid[0], uid[1], uid[2], uid[3], uid[4], uid[5], uid[6],
@@ -234,6 +257,72 @@ namespace LNURL
                 error = ex.Message;
                 return false;
             }
+        }
+
+        public static byte[] CreateCValue(string uid, uint counter, byte[] k2CmacKey)
+        {
+            var ctr = new byte[3];
+            ctr[2] = (byte) (counter >> 16);
+            ctr[1] = (byte) (counter >> 8);
+            ctr[0] = (byte) (counter);
+
+            var uidBytes = Convert.FromHexString(uid);
+            return CreateCValue(uidBytes, ctr, k2CmacKey);
+        }
+
+        public static byte[] CreateCValue(byte[] uid, byte[] counter, byte[] k2CmacKey)
+        {
+            if (uid.Length != 7 || counter.Length != 3 || k2CmacKey.Length != AES_BLOCK_SIZE)
+            {
+                throw new ArgumentException("Invalid input lengths.");
+            }
+
+            byte[] sv2 =
+            {
+                0x3c, 0xc3, 0x00, 0x01, 0x00, 0x80,
+                uid[0], uid[1], uid[2], uid[3], uid[4], uid[5], uid[6],
+                counter[0], counter[1], counter[2]
+            };
+
+            var computedCmac = GetSunMac(k2CmacKey, sv2);
+
+            return computedCmac;
+        }
+
+        public static byte[] CreatePValue(byte[] aesKey, uint counter, string uid)
+        {
+            using var aes = Aes.Create();
+            aes.Key = aesKey;
+            aes.IV = new byte[16]; // assuming IV is zeros. Adjust if needed.
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+
+            // Constructing the 16-byte array to be encrypted
+            byte[] toEncrypt = new byte[16];
+            toEncrypt[0] = 0xC7; // First byte is 0xC7
+
+            var uidBytes = Convert.FromHexString(uid);
+            Array.Copy(uidBytes, 0, toEncrypt, 1, uidBytes.Length);
+
+            // Counter
+            toEncrypt[8] = (byte) (counter & 0xFF); // least-significant byte
+            toEncrypt[9] = (byte) ((counter >> 8) & 0xFF);
+            toEncrypt[10] = (byte) ((counter >> 16) & 0xFF);
+
+            // Encryption
+            var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            byte[] encryptedData;
+            using var memoryStream = new System.IO.MemoryStream();
+            using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+            {
+                cryptoStream.Write(toEncrypt, 0, toEncrypt.Length);
+            }
+
+            encryptedData = memoryStream.ToArray();
+
+            var result = ExtractUidAndCounterFromP(encryptedData, aesKey, out var error);
+            
+            return encryptedData;
         }
     }
 }
