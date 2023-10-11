@@ -34,7 +34,7 @@ public class LNURLWithdrawRequest
     public LightMoney MaxWithdrawable { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/14.md
-    [JsonProperty("currentBalance ")]
+    [JsonProperty("currentBalance")]
     [JsonConverter(typeof(LightMoneyJsonConverter))]
     public LightMoney CurrentBalance { get; set; }
 
