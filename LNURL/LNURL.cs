@@ -4,9 +4,11 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Formatting;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NBitcoin;
 using Newtonsoft.Json.Linq;
 
 namespace LNURL;
@@ -43,7 +45,8 @@ public class LNURL
             Bech32Engine.Decode(lnurl, out _, out var data);
             var result = new Uri(Encoding.UTF8.GetString(data));
 
-            if (!result.IsOnion() && !result.Scheme.Equals("https") && !result.IsLocalNetwork())
+            if (!result.IsOnion() && !result.Scheme.Equals("https") && !result.IsLocalNetwork() &&
+                result.Scheme != "nostr")
                 throw new FormatException("LNURL provided is not secure.");
 
             var query = result.ParseQueryString();
@@ -54,15 +57,17 @@ public class LNURL
         if (Uri.TryCreate(lnurl, UriKind.Absolute, out var lud17Uri) &&
             SchemeTagMapping.TryGetValue(lud17Uri.Scheme.ToLowerInvariant(), out tag))
             return new Uri(lud17Uri.ToString()
-                .Replace(lud17Uri.Scheme + ":", lud17Uri.IsOnion() ? "http:" : "https:"));
+                .Replace(lud17Uri.Scheme + ":", lud17Uri.Host.StartsWith("nprofile1")? "nostr:": lud17Uri.IsOnion() ? "http:" : "https:"));
 
         throw new FormatException("LNURL uses bech32 and 'lnurl' as the hrp (LUD1) or an lnurl LUD17 scheme. ");
     }
 
     public static string EncodeBech32(Uri serviceUrl)
     {
-        if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork())
-            throw new ArgumentException("serviceUrl must be an onion service OR https based OR on the local network",
+        if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork() &&
+            serviceUrl.Scheme != "nostr")
+            throw new ArgumentException(
+                "serviceUrl must be an onion service OR https based OR on the local network OR Nostr NIP21",
                 nameof(serviceUrl));
 
         return Bech32Engine.Encode("lnurl", Encoding.UTF8.GetBytes(serviceUrl.ToString()));
@@ -70,8 +75,10 @@ public class LNURL
 
     public static Uri EncodeUri(Uri serviceUrl, string tag, bool bech32)
     {
-        if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork())
-            throw new ArgumentException("serviceUrl must be an onion service OR https based OR on the local network",
+        if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork() &&
+            serviceUrl.Scheme != "nostr")
+            throw new ArgumentException(
+                "serviceUrl must be an onion service OR https based OR on the local network OR Nostr NIP21",
                 nameof(serviceUrl));
         if (string.IsNullOrEmpty(tag)) tag = serviceUrl.ParseQueryString().Get("tag");
         if (tag == "login") LNAuthRequest.EnsureValidUrl(serviceUrl);
@@ -99,6 +106,7 @@ public class LNURL
     {
         return FetchPayRequestViaInternetIdentifier(identifier, httpClient, default);
     }
+
     public static async Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
         HttpClient httpClient, CancellationToken cancellationToken)
     {
@@ -111,17 +119,19 @@ public class LNURL
         var s = identifier.Split("@");
         var s2 = s[1].Split(":");
         UriBuilder uriBuilder;
+        var scheme = s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https";
+        var host = s2[0];
         if (s2.Length > 1)
             uriBuilder = new UriBuilder(
-                s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
-                s2[0], int.Parse(s2[1]))
+                scheme,
+                host, int.Parse(s2[1]))
             {
                 Path = $"/.well-known/lnurlp/{s[0]}"
             };
         else
             uriBuilder =
-                new UriBuilder(s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
-                    s2[0])
+                new UriBuilder(scheme,
+                    host)
                 {
                     Path = $"/.well-known/lnurlp/{s[0]}"
                 };
@@ -134,15 +144,25 @@ public class LNURL
     {
         return FetchInformation(lnUrl, httpClient, default);
     }
-    public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient, CancellationToken cancellationToken)
+
+    public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient,
+        CancellationToken cancellationToken)
     {
         return await FetchInformation(lnUrl, null, httpClient, cancellationToken);
     }
+
     public static Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
     {
         return FetchInformation(lnUrl, tag, httpClient, default);
     }
-    public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient, CancellationToken cancellationToken)
+
+    public static Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient,
+        CancellationToken cancellationToken)
+    {
+        return FetchInformation(lnUrl, tag, new LNURLCompositeCommunicator(httpClient), cancellationToken);
+    }
+    public static async Task<object> FetchInformation(Uri lnUrl, string tag, ILNURLCommunicator communicator,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -153,21 +173,20 @@ public class LNURL
             // ignored
         }
 
-        if (tag is null) tag = lnUrl.ParseQueryString().Get("tag");
+        tag ??= lnUrl.ParseQueryString().Get("tag");
         JObject json;
         NameValueCollection queryString;
-        HttpResponseMessage response;
+        // JObject response;
         string k1;
         switch (tag)
         {
             case null:
-                response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                json = await communicator.SendRequest(lnUrl, cancellationToken);
 
                 if (json.TryGetValue("tag", out var tagToken))
                 {
                     tag = tagToken.ToString();
-                    return FetchInformation(json, tag);
+                    return FetchInformation(json, tag, lnUrl);
                 }
 
                 throw new LNUrlException("A tag identifying the LNURL endpoint was not received.");
@@ -178,12 +197,11 @@ public class LNURL
                 var minWithdrawable = queryString.Get("minWithdrawable");
                 var maxWithdrawable = queryString.Get("maxWithdrawable");
                 var defaultDescription = queryString.Get("defaultDescription");
-                var callback = queryString.Get("callback");
-                if (k1 is null || minWithdrawable is null || maxWithdrawable is null || callback is null)
+                var callback = queryString.Get("callback")??lnUrl.ToString();
+                if (k1 is null || minWithdrawable is null || maxWithdrawable is null)
                 {
-                    response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                    json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-                    return FetchInformation(json, tag);
+                    json = await communicator.SendRequest(lnUrl, cancellationToken);
+                    return FetchInformation(json, tag, lnUrl);
                 }
 
                 return new LNURLWithdrawRequest
@@ -211,23 +229,34 @@ public class LNURL
                 };
 
             default:
-                response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-                return FetchInformation(json, tag);
+                
+                json = await communicator.SendRequest(lnUrl, cancellationToken);
+                return FetchInformation(json, tag, lnUrl);
         }
     }
 
-    private static object FetchInformation(JObject response, string tag)
+    private static object FetchInformation(JObject response, string tag, Uri lnurl)
     {
         if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
 
-        return tag switch
+        switch (tag)
         {
-            "channelRequest" => response.ToObject<LNURLChannelRequest>(),
-            "hostedChannelRequest" => response.ToObject<LNURLHostedChannelRequest>(),
-            "withdrawRequest" => response.ToObject<LNURLWithdrawRequest>(),
-            "payRequest" => response.ToObject<LNURLPayRequest>(),
-            _ => response
-        };
+            case "channelRequest":
+                var lnurlChannelRequest =  response.ToObject<LNURLChannelRequest>();
+                lnurlChannelRequest.Callback ??= lnurl;
+                return lnurlChannelRequest;
+            case "hostedChannelRequest":
+                return response.ToObject<LNURLHostedChannelRequest>();
+            case "withdrawRequest":
+                var lnurlWithdrawRequest = response.ToObject<LNURLWithdrawRequest>();
+                lnurlWithdrawRequest.Callback ??= lnurl;
+                return lnurlWithdrawRequest;
+            case "payRequest":
+                var lnurlPayRequest = response.ToObject<LNURLPayRequest>();
+                lnurlPayRequest.Callback ??= lnurl;
+                return lnurlPayRequest;
+            default:
+                return response;
+        }
     }
 }

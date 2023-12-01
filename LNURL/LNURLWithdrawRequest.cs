@@ -54,12 +54,12 @@ public class LNURLWithdrawRequest
     public LightMoney PinLimit { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/15.md
-    public Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient,
+    public Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
         return SendRequest(bolt11, httpClient, null, balanceNotify, cancellationToken);
     }    
-    public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
+    public async Task<LNUrlStatusResponse> SendRequest(string bolt11, ILNURLCommunicator communicator, string pin = null,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
         var url = Callback;
@@ -70,9 +70,8 @@ public class LNURLWithdrawRequest
         if (pin != null) LNURL.AppendPayloadToQuery(uriBuilder, "pin", pin);
 
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
 
-        return json.ToObject<LNUrlStatusResponse>();
+        var response = await communicator.SendRequest(url, cancellationToken);
+        return response.ToObject<LNUrlStatusResponse>();
     }
 }
