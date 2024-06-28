@@ -113,7 +113,7 @@ public class LNURL
         UriBuilder uriBuilder;
         if (s2.Length > 1)
             uriBuilder = new UriBuilder(
-                s[1].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
+                s2[0].EndsWith(".onion", StringComparison.InvariantCultureIgnoreCase) ? "http" : "https",
                 s2[0], int.Parse(s2[1]))
             {
                 Path = $"/.well-known/lnurlp/{s[0]}"

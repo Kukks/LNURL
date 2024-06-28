@@ -49,7 +49,9 @@ namespace LNURL.Tests
 
         [Theory]
         [InlineData("kukks@btcpay.kukks.org", "https://btcpay.kukks.org/.well-known/lnurlp/kukks")]
-        [InlineData("kukks@tor.onion", "http://tor.onion/.well-known/lnurlp/kukks")]
+        [InlineData("kukks@btcpay.kukks.org:4000", "https://btcpay.kukks.org:4000/.well-known/lnurlp/kukks")]
+        [InlineData("kukks@tor.onion","http://tor.onion/.well-known/lnurlp/kukks")]
+        [InlineData("kukks@tor.onion:4000","http://tor.onion:4000/.well-known/lnurlp/kukks")]
         public void CanParseLightningAddress(string lightningAddress, string expectedUrl)
         {
             Assert.Equal(expectedUrl, LNURL.ExtractUriFromInternetIdentifier(lightningAddress).ToString());
