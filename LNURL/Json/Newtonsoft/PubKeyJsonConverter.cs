@@ -4,7 +4,7 @@ using NBitcoin;
 using NBitcoin.JsonConverters;
 using Newtonsoft.Json;
 
-namespace LNURL.JsonConverters;
+namespace LNURL.Json.Newtonsoft;
 
 public class PubKeyJsonConverter : JsonConverter<PubKey>
 {

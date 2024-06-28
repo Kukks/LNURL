@@ -8,15 +8,25 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+		Debug JSONNET|Any CPU = Debug JSONNET|Any CPU
+		Release JSONNET|Any CPU = Release JSONNET|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Debug JSONNET|Any CPU.ActiveCfg = Debug JSONNET|Any CPU
+		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Debug JSONNET|Any CPU.Build.0 = Debug JSONNET|Any CPU
+		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Release JSONNET|Any CPU.ActiveCfg = Release JSONNET|Any CPU
+		{8AE80152-6EF0-47BC-AE09-B9C72DBC6902}.Release JSONNET|Any CPU.Build.0 = Release JSONNET|Any CPU
 		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Debug JSONNET|Any CPU.ActiveCfg = Debug JSONNET|Any CPU
+		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Debug JSONNET|Any CPU.Build.0 = Debug JSONNET|Any CPU
+		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Release JSONNET|Any CPU.ActiveCfg = Release JSONNET|Any CPU
+		{0D55DB17-C3F5-4FB4-A456-58C3E8593AC2}.Release JSONNET|Any CPU.Build.0 = Release JSONNET|Any CPU
 	EndGlobalSection
 EndGlobal

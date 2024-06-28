@@ -1,13 +1,17 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
+using LNURL.Requests;
 using NBitcoin;
 using NBitcoin.Altcoins.Elements;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Xunit;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace LNURL.Tests
 {
@@ -29,8 +33,10 @@ namespace LNURL.Tests
                 "}";
 
             var req = JsonConvert.DeserializeObject<LNURLWithdrawRequest>(json);
+            var req2 = JsonSerializer.Deserialize<LNURLWithdrawRequest>(json);
 
             Assert.Null(req.PayLink);
+            Assert.Null(req2.PayLink);
 
             json =
                 "{" +
@@ -43,8 +49,10 @@ namespace LNURL.Tests
                 "}";
 
             req = JsonConvert.DeserializeObject<LNURLWithdrawRequest>(json);
+            req2 = JsonSerializer.Deserialize<LNURLWithdrawRequest>(json);
 
             Assert.Null(req.PayLink);
+            Assert.Null(req2.PayLink);
         }
 
         [Theory]
@@ -146,6 +154,14 @@ namespace LNURL.Tests
             Assert.False(req.PayerData.Auth.Mandatory);
             Assert.Null(req.PayerData.Email);
 
+            req = JsonSerializer.Deserialize<LNURLPayRequest>(JsonSerializer.Serialize(req));
+
+            Assert.NotNull(req.PayerData);
+            Assert.True(req.PayerData.Pubkey.Mandatory);
+            Assert.False(req.PayerData.Name.Mandatory);
+            Assert.False(req.PayerData.Auth.Mandatory);
+            Assert.Null(req.PayerData.Email);
+
             var k = new Key();
 
             var resp = new LNURLPayRequest.LUD18PayerDataResponse()
@@ -161,10 +177,19 @@ namespace LNURL.Tests
             resp = JsonConvert.DeserializeObject<LNURLPayRequest.LUD18PayerDataResponse>(
                 JsonConvert.SerializeObject(resp));
             Assert.False(req.VerifyPayerData(resp));
+
+            resp = JsonSerializer.Deserialize<LNURLPayRequest.LUD18PayerDataResponse>(
+                JsonSerializer.Serialize(resp));
+            Assert.False(req.VerifyPayerData(resp));
+
             resp.Pubkey = k.PubKey;
             resp = JsonConvert.DeserializeObject<LNURLPayRequest.LUD18PayerDataResponse>(
                 JsonConvert.SerializeObject(resp));
             Assert.True(req.VerifyPayerData(resp));
+
+            resp = JsonSerializer.Deserialize<LNURLPayRequest.LUD18PayerDataResponse>(
+                JsonSerializer.Serialize(resp));
+
             resp.Email = "test@test.com";
             Assert.False(req.VerifyPayerData(resp));
 
@@ -248,6 +273,7 @@ namespace LNURL.Tests
                 }
             }
         }
+
         //from https://github.com/boltcard/boltcard/blob/7745c9f20d5ad0129cb4b3fc534441038e79f5e6/docs/TEST_VECTORS.md
         [Theory]
         [InlineData("4E2E289D945A66BB13377A728884E867", "E19CCB1FED8892CE", "04996c6a926980", 3)]
@@ -255,7 +281,6 @@ namespace LNURL.Tests
         [InlineData("0DBF3C59B59B0638D60B5842A997D4D1", "CC61660C020B4D96", "04996c6a926980", 7)]
         public void TestDecryptAndValidate(string pValueHex, string cValueHex, string expectedUidHex, uint expectedCtr)
         {
-                
             var aesDecryptKey = Convert.FromHexString("0c3b25d92b38ae443229dd59ad34b85d");
             var aesCmacKey = Convert.FromHexString("b45775776cb224c75bcde7ca3704e933");
             byte[] pValue = Convert.FromHexString(pValueHex);
@@ -273,5 +298,31 @@ namespace LNURL.Tests
             Assert.True(cmacIsValid, "CMAC validation failed");
         }
 
+        [Fact]
+        public void TestErrorStatus()
+        {
+            var validErrorJson = "{\"status\": \"ERROR\", \"reason\": \"error details...\"}";
+            var noterror = "{\"status\": \"ok\", \"reason\": \"error details...\"}";
+
+            Assert.True(LNUrlStatusResponse.IsErrorResponse(JObject.Parse(validErrorJson), out var status));
+            Assert.Equal(status.Reason, "error details...");
+            Assert.True(LNUrlStatusResponse.IsErrorResponse(JsonSerializer.Deserialize<JsonElement>(validErrorJson),
+                out var status2));
+
+            Assert.Equal(status2.Reason, "error details...");
+
+            Assert.False(LNUrlStatusResponse.IsErrorResponse(JObject.Parse(noterror), out var status3));
+            Assert.Null(status3);
+            Assert.False(LNUrlStatusResponse.IsErrorResponse(JsonSerializer.Deserialize<JsonElement>(noterror),
+                out var status4));
+            Assert.Null(status4);
+        }
+
+[Fact]
+        public void TestUnknownLnurl()
+        {
+            
+            
+        }
     }
 }

@@ -4,9 +4,9 @@ using BTCPayServer.Lightning;
 using NBitcoin.JsonConverters;
 using Newtonsoft.Json;
 
-namespace LNURL.JsonConverters;
+namespace LNURL.Json.Newtonsoft;
 
-public class NodeUriJsonConverter : JsonConverter<NodeInfo>
+public class NodeUriJsonConverter : global::Newtonsoft.Json.JsonConverter<NodeInfo>
 {
     public override NodeInfo ReadJson(JsonReader reader, Type objectType, [AllowNull] NodeInfo existingValue,
         bool hasExistingValue, JsonSerializer serializer)

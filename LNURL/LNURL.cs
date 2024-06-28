@@ -4,10 +4,13 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
+using System.Net.Mail;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+using LNURL.Requests;
 
 namespace LNURL;
 
@@ -56,6 +59,12 @@ public class LNURL
             return new Uri(lud17Uri.ToString()
                 .Replace(lud17Uri.Scheme + ":", lud17Uri.IsOnion() ? "http:" : "https:"));
 
+        if (MailAddress.TryCreate(lnurl, out var emailAddress))
+        {
+            tag = "payRequest";
+            return ExtractUriFromInternetIdentifier(lnurl);   
+        }
+        
         throw new FormatException("LNURL uses bech32 and 'lnurl' as the hrp (LUD1) or an lnurl LUD17 scheme. ");
     }
 
@@ -130,19 +139,19 @@ public class LNURL
     }
 
 
-    public static Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient)
+    public static Task<ILNURLRequest> FetchInformation(Uri lnUrl, HttpClient httpClient)
     {
         return FetchInformation(lnUrl, httpClient, default);
     }
-    public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient, CancellationToken cancellationToken)
+    public static async Task<ILNURLRequest> FetchInformation(Uri lnUrl, HttpClient httpClient, CancellationToken cancellationToken)
     {
         return await FetchInformation(lnUrl, null, httpClient, cancellationToken);
     }
-    public static Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
+    public static Task<ILNURLRequest> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
     {
         return FetchInformation(lnUrl, tag, httpClient, default);
     }
-    public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient, CancellationToken cancellationToken)
+    public static async Task<ILNURLRequest> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient, CancellationToken cancellationToken)
     {
         try
         {
@@ -154,7 +163,7 @@ public class LNURL
         }
 
         if (tag is null) tag = lnUrl.ParseQueryString().Get("tag");
-        JObject json;
+        JsonElement json;
         NameValueCollection queryString;
         HttpResponseMessage response;
         string k1;
@@ -162,11 +171,12 @@ public class LNURL
         {
             case null:
                 response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+               
+                    json =  await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
 
-                if (json.TryGetValue("tag", out var tagToken))
+                if (json.TryGetProperty("tag", out var tagTokenElement) && tagTokenElement.GetString() is { } tagToken)
                 {
-                    tag = tagToken.ToString();
+                    tag = tagToken;
                     return FetchInformation(json, tag);
                 }
 
@@ -182,7 +192,7 @@ public class LNURL
                 if (k1 is null || minWithdrawable is null || maxWithdrawable is null || callback is null)
                 {
                     response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                    json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                    json =  await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
                     return FetchInformation(json, tag);
                 }
 
@@ -212,22 +222,22 @@ public class LNURL
 
             default:
                 response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                json = await response.Content.ReadAsAsync<JsonElement>(cancellationToken);
                 return FetchInformation(json, tag);
         }
     }
 
-    private static object FetchInformation(JObject response, string tag)
+    private static ILNURLRequest FetchInformation(JsonElement response, string tag)
     {
         if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
 
         return tag switch
         {
-            "channelRequest" => response.ToObject<LNURLChannelRequest>(),
-            "hostedChannelRequest" => response.ToObject<LNURLHostedChannelRequest>(),
-            "withdrawRequest" => response.ToObject<LNURLWithdrawRequest>(),
-            "payRequest" => response.ToObject<LNURLPayRequest>(),
-            _ => response
+            "channelRequest" => response.Deserialize<LNURLChannelRequest>(),
+            "hostedChannelRequest" => response.Deserialize<LNURLHostedChannelRequest>(),
+            "withdrawRequest" => response.Deserialize<LNURLWithdrawRequest>(),
+            "payRequest" => response.Deserialize<LNURLPayRequest>(),
+            _ => response.Deserialize<UnknownLNURLRequest>(),
         };
     }
 }
