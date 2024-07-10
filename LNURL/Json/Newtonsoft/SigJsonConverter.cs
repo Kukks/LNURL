@@ -5,7 +5,7 @@ using NBitcoin.DataEncoders;
 using NBitcoin.JsonConverters;
 using Newtonsoft.Json;
 
-namespace LNURL.JsonConverters;
+namespace LNURL.Json.Newtonsoft;
 
 public class SigJsonConverter : JsonConverter<ECDSASignature>
 {

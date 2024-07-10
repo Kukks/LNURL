@@ -1,20 +1,21 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
 
-namespace LNURL;
+namespace LNURL.Requests;
 
 /// <summary>
 ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/04.md
 /// </summary>
-public class LNAuthRequest
+public class LNAuthRequest : ILNURLRequest
 {
     public enum LNAuthRequestAction
     {
@@ -27,27 +28,33 @@ public class LNAuthRequest
     public Uri LNUrl { get; set; }
 
 
-    [JsonProperty("tag")] public string Tag => "login";
-    [JsonProperty("k1")] public string K1 { get; set; }
+    [JsonProperty("tag")]
+    [JsonPropertyName("tag")]
+    public string Tag => "login";
+
+    [JsonProperty("k1")]
+    [JsonPropertyName("k1")]
+    public string K1 { get; set; }
 
     [JsonProperty("action")]
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonPropertyName("action")]
+    [Newtonsoft.Json.JsonConverter(typeof(StringEnumerator))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(JsonStringEnumConverter))]
     public LNAuthRequestAction? Action { get; set; }
 
-    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)
+    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient,
+        CancellationToken cancellationToken = default)
     {
         var url = LNUrl;
         var uriBuilder = new UriBuilder(url);
         LNURL.AppendPayloadToQuery(uriBuilder, "sig", Encoders.Hex.EncodeData(sig.ToDER()));
         LNURL.AppendPayloadToQuery(uriBuilder, "key", key.ToHex());
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-
-        return json.ToObject<LNUrlStatusResponse>();
+        return await httpClient.GetFromJsonAsync<LNUrlStatusResponse>(url, cancellationToken);
     }
 
-    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient, CancellationToken cancellationToken = default)
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, HttpClient httpClient,
+        CancellationToken cancellationToken = default)
     {
         var sig = SignChallenge(key);
         return SendChallenge(sig, key.PubKey, httpClient, cancellationToken);

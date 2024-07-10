@@ -5,67 +5,110 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using BTCPayServer.Lightning;
-using BTCPayServer.Lightning.JsonConverters;
-using LNURL.JsonConverters;
+using LNURL.Json.Newtonsoft;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using JsonSerializer = System.Text.Json.JsonSerializer;
+using LightMoneyJsonConverter = BTCPayServer.Lightning.JsonConverters.LightMoneyJsonConverter;
+using LNURLPayRequestSuccessActionJsonConverter = LNURL.Json.SystemJson.LNURLPayRequestSuccessActionJsonConverter;
+using PubKeyJsonConverter = LNURL.Json.SystemJson.PubKeyJsonConverter;
+using SigJsonConverter = LNURL.Json.SystemJson.SigJsonConverter;
 
-namespace LNURL;
+namespace LNURL.Requests;
 
 /// <summary>
 ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/06.md
 /// </summary>
-public class LNURLPayRequest
+public class LNURLPayRequest : ILNURLRequest
 {
     [JsonProperty("callback")]
-    [JsonConverter(typeof(UriJsonConverter))]
+    [JsonPropertyName("callback")]
+    [Newtonsoft.Json.JsonConverter(typeof(UriJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(Json.SystemJson.UriJsonConverter))]
     public Uri Callback { get; set; }
 
-    [JsonProperty("metadata")] public string Metadata { get; set; }
+    [JsonProperty("metadata")]
+    [JsonPropertyName("metadata")]
+    public string Metadata { get; set; }
 
-    [JsonIgnore]
-    public List<KeyValuePair<string, string>> ParsedMetadata => JsonConvert
-        .DeserializeObject<string[][]>(Metadata ?? string.Empty)
+
+    [Newtonsoft.Json.JsonIgnore]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<KeyValuePair<string, string>> ParsedMetadata => JsonSerializer
+        .Deserialize<string[][]>(Metadata ?? string.Empty)
         .Select(strings => new KeyValuePair<string, string>(strings[0], strings[1])).ToList();
 
-    [JsonProperty("tag")] public string Tag { get; set; }
+    [JsonProperty("tag")]
+    [JsonPropertyName("tag")]
+    public string Tag { get; set; }
 
     [JsonProperty("minSendable")]
-    [JsonConverter(typeof(LightMoneyJsonConverter))]
+    [JsonPropertyName("minSendable")]
+    [Newtonsoft.Json.JsonConverter(typeof(LightMoneyJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(Json.SystemJson.LightMoneyJsonConverter))]
     public LightMoney MinSendable { get; set; }
 
     [JsonProperty("maxSendable")]
-    [JsonConverter(typeof(LightMoneyJsonConverter))]
+    [JsonPropertyName("maxSendable")]
+    [Newtonsoft.Json.JsonConverter(typeof(LightMoneyJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(Json.SystemJson.LightMoneyJsonConverter))]
     public LightMoney MaxSendable { get; set; }
 
+    [JsonProperty("commentAllowed", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("commentAllowed")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     /// <summary>
     ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/12.md
     /// </summary>
-    [JsonProperty("commentAllowed", NullValueHandling = NullValueHandling.Ignore)]
     public int? CommentAllowed { get; set; }
 
-    //https://github.com/fiatjaf/lnurl-rfc/blob/luds/19.md
     [JsonProperty("withdrawLink", NullValueHandling = NullValueHandling.Ignore)]
-    [JsonConverter(typeof(UriJsonConverter))]
+    [JsonPropertyName("withdrawLink")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+    //https://github.com/fiatjaf/lnurl-rfc/blob/luds/19.md
+    [Newtonsoft.Json.JsonConverter(typeof(UriJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(Json.SystemJson.UriJsonConverter))]
     public Uri WithdrawLink { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/18.md
+
     [JsonProperty("payerData", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("payerData")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public LUD18PayerData PayerData { get; set; }
 
-    [JsonExtensionData] public IDictionary<string, JToken> AdditionalData { get; set; }
-    //https://github.com/nostr-protocol/nips/blob/master/57.md
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    [Newtonsoft.Json.JsonExtensionData]
+    public IDictionary<string, JToken> AdditionalData { get; set; }
+
+    [System.Text.Json.Serialization.JsonExtensionData]
+    [Newtonsoft.Json.JsonIgnore]
+    public IDictionary<string, JsonElement> AdditionalDataSystemJson { get; set; }
+
+
     [JsonProperty("nostrPubkey", NullValueHandling = NullValueHandling.Ignore)]
-    public string? NostrPubkey { get; set; }
+    [JsonPropertyName("nostrPubkey")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
     //https://github.com/nostr-protocol/nips/blob/master/57.md
+    public string? NostrPubkey { get; set; }
+
     [JsonProperty("allowsNostr", NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName("allowsNostr")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+    //https://github.com/nostr-protocol/nips/blob/master/57.md
     public bool? AllowsNostr { get; set; }
 
     public bool VerifyPayerData(LUD18PayerDataResponse response)
@@ -92,7 +135,8 @@ public class LNURLPayRequest
     }
 
     public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken = default)
+        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null,
+        CancellationToken cancellationToken = default)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
@@ -118,69 +162,104 @@ public class LNURLPayRequest
     public class PayerDataField
     {
         [JsonProperty("mandatory", DefaultValueHandling = DefaultValueHandling.Populate)]
+        [JsonPropertyName("mandatory")]
         public bool Mandatory { get; set; }
     }
 
     public class LUD18PayerData
     {
         [JsonProperty("name", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("allowsNostr")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public PayerDataField Name { get; set; }
 
         [JsonProperty("pubkey", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("pubkey")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public PayerDataField Pubkey { get; set; }
 
         [JsonProperty("email", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("email")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public PayerDataField Email { get; set; }
 
         [JsonProperty("auth", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("auth")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public AuthPayerDataField Auth { get; set; }
     }
 
     public class LUD18PayerDataResponse
     {
         [JsonProperty("name", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("allowsNostr")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string Name { get; set; }
 
         [JsonProperty("pubkey", DefaultValueHandling = DefaultValueHandling.Ignore)]
-        [JsonConverter(typeof(PubKeyJsonConverter))]
+        [JsonPropertyName("pubkey")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonConverter(typeof(PubKeyJsonConverter))]
+        [Newtonsoft.Json.JsonConverter(typeof(Json.Newtonsoft.PubKeyJsonConverter))]
         public PubKey Pubkey { get; set; }
 
         [JsonProperty("email", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("email")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string Email { get; set; }
 
         [JsonProperty("auth", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("auth")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public LUD18AuthPayerDataResponse Auth { get; set; }
     }
 
     public class LUD18AuthPayerDataResponse
     {
-        [JsonProperty("key")]
-        [JsonConverter(typeof(PubKeyJsonConverter))]
+        [JsonProperty("key", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [JsonPropertyName("key")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonConverter(typeof(PubKeyJsonConverter))]
+        [Newtonsoft.Json.JsonConverter(typeof(Json.Newtonsoft.PubKeyJsonConverter))]
         public PubKey Key { get; set; }
 
-        [JsonProperty("k1")] public string K1 { get; set; }
+
+        [JsonPropertyName("k1")]
+        [JsonProperty("k1")]
+        public string K1 { get; set; }
 
         [JsonProperty("sig")]
-        [JsonConverter(typeof(SigJsonConverter))]
+        [System.Text.Json.Serialization.JsonConverter(typeof(SigJsonConverter))]
+        [Newtonsoft.Json.JsonConverter(typeof(Json.Newtonsoft.SigJsonConverter))]
         public ECDSASignature Sig { get; set; }
     }
 
     public class AuthPayerDataField : PayerDataField
     {
-        [JsonProperty("k1")] public string K1 { get; set; }
+        [JsonPropertyName("k1")]
+        [JsonProperty("k1")]
+        public string K1 { get; set; }
     }
 
     public class LNURLPayRequestCallbackResponse
     {
-        [JsonIgnore] private BOLT11PaymentRequest _paymentRequest;
+        [System.Text.Json.Serialization.JsonIgnore] [Newtonsoft.Json.JsonIgnore]
+        private BOLT11PaymentRequest _paymentRequest;
 
-        [JsonProperty("pr")] public string Pr { get; set; }
 
-        [JsonProperty("routes")] public string[] Routes { get; set; } = Array.Empty<string>();
+        [JsonPropertyName("pr")]
+        [JsonProperty("pr")]
+        public string Pr { get; set; }
+
+        [JsonPropertyName("routes")]
+        [JsonProperty("routes")]
+        public string[] Routes { get; set; } = Array.Empty<string>();
 
         /// <summary>
         ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/11.md
         /// </summary>
+
+        [JsonPropertyName("disposable")]
         [JsonProperty("disposable")]
         public bool? Disposable { get; set; }
 
@@ -188,7 +267,9 @@ public class LNURLPayRequest
         ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/09.md
         /// </summary>
         [JsonProperty("successAction")]
-        [JsonConverter(typeof(LNURLPayRequestSuccessActionJsonConverter))]
+        [JsonPropertyName("successAction")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(LNURLPayRequestSuccessActionJsonConverter))]
+        [Newtonsoft.Json.JsonConverter(typeof(Json.Newtonsoft.LNURLPayRequestSuccessActionJsonConverter))]
         public ILNURLPayRequestSuccessAction SuccessAction { get; set; }
 
         public bool Verify(LNURLPayRequest request, LightMoney expectedAmount, Network network,
@@ -199,6 +280,7 @@ public class LNURLPayRequest
                 bolt11PaymentRequest = null;
                 return false;
             }
+
             if (_paymentRequest != null)
                 bolt11PaymentRequest = _paymentRequest;
             else if (!BOLT11PaymentRequest.TryParse(Pr, out bolt11PaymentRequest, network))
@@ -207,7 +289,8 @@ public class LNURLPayRequest
                 _paymentRequest = bolt11PaymentRequest;
 
             return _paymentRequest.MinimumAmount == expectedAmount && (!verifyDescriptionHash ||
-                   _paymentRequest.VerifyDescriptionHash(request.Metadata));
+                                                                       _paymentRequest.VerifyDescriptionHash(
+                                                                           request.Metadata));
         }
 
         public BOLT11PaymentRequest GetPaymentRequest(Network network)
@@ -226,9 +309,13 @@ public class LNURLPayRequest
         /// </summary>
         public class LNURLPayRequestSuccessActionMessage : ILNURLPayRequestSuccessAction
         {
-            [JsonProperty("message")] public string Message { get; set; }
+            [JsonPropertyName("message")]
+            [JsonProperty("message")]
+            public string Message { get; set; }
 
-            [JsonProperty("tag")] public string Tag { get; set; }
+            [JsonPropertyName("tag")]
+            [JsonProperty("tag")]
+            public string Tag { get; set; }
         }
 
         /// <summary>
@@ -236,13 +323,19 @@ public class LNURLPayRequest
         /// </summary>
         public class LNURLPayRequestSuccessActionUrl : ILNURLPayRequestSuccessAction
         {
-            [JsonProperty("description")] public string Description { get; set; }
+            [JsonPropertyName("description")]
+            [JsonProperty("description")]
+            public string Description { get; set; }
 
             [JsonProperty("url")]
-            [JsonConverter(typeof(UriJsonConverter))]
+            [JsonPropertyName("url")]
+            [Newtonsoft.Json.JsonConverter(typeof(UriJsonConverter))]
+            [System.Text.Json.Serialization.JsonConverter(typeof(Json.SystemJson.UriJsonConverter))]
             public string Url { get; set; }
 
-            [JsonProperty("tag")] public string Tag { get; set; }
+            [JsonPropertyName("tag")]
+            [JsonProperty("tag")]
+            public string Tag { get; set; }
         }
 
         /// <summary>
@@ -251,10 +344,21 @@ public class LNURLPayRequest
         /// </summary>
         public class LNURLPayRequestSuccessActionAES : ILNURLPayRequestSuccessAction
         {
-            [JsonProperty("description")] public string Description { get; set; }
-            [JsonProperty("ciphertext")] public string CipherText { get; set; }
-            [JsonProperty("iv")] public string IV { get; set; }
-            [JsonProperty("tag")] public string Tag { get; set; }
+            [JsonPropertyName("description")]
+            [JsonProperty("description")]
+            public string Description { get; set; }
+
+            [JsonPropertyName("ciphertext")]
+            [JsonProperty("ciphertext")]
+            public string CipherText { get; set; }
+
+            [JsonPropertyName("iv")]
+            [JsonProperty("iv")]
+            public string IV { get; set; }
+
+            [JsonPropertyName("tag")]
+            [JsonProperty("tag")]
+            public string Tag { get; set; }
 
             public string Decrypt(string preimage)
             {
@@ -290,41 +394,6 @@ public class LNURLPayRequest
                 }
 
                 return plaintext;
-            }
-        }
-
-
-        public class LNURLPayRequestSuccessActionJsonConverter : JsonConverter<ILNURLPayRequestSuccessAction>
-        {
-            public override void WriteJson(JsonWriter writer, ILNURLPayRequestSuccessAction value,
-                JsonSerializer serializer)
-            {
-                if (value is null)
-                {
-                    writer.WriteNull();
-                    return;
-                }
-
-                JObject.FromObject(value).WriteTo(writer);
-            }
-
-            public override ILNURLPayRequestSuccessAction ReadJson(JsonReader reader, Type objectType,
-                ILNURLPayRequestSuccessAction existingValue,
-                bool hasExistingValue, JsonSerializer serializer)
-            {
-                if (reader.TokenType is JsonToken.Null) return null;
-                var jobj = JObject.Load(reader);
-                switch (jobj.GetValue("tag").Value<string>())
-                {
-                    case "message":
-                        return jobj.ToObject<LNURLPayRequestSuccessActionMessage>();
-                    case "url":
-                        return jobj.ToObject<LNURLPayRequestSuccessActionUrl>();
-                    case "aes":
-                        return jobj.ToObject<LNURLPayRequestSuccessActionAES>();
-                }
-
-                throw new FormatException();
             }
         }
     }

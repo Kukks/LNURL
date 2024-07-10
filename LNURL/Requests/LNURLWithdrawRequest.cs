@@ -4,16 +4,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.JsonConverters;
-using LNURL.JsonConverters;
+using LNURL.Json.Newtonsoft;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace LNURL;
+namespace LNURL.Requests;
 
 /// <summary>
 ///     https://github.com/fiatjaf/lnurl-rfc/blob/luds/02.md
 /// </summary>
-public class LNURLWithdrawRequest
+public class LNURLWithdrawRequest: ILNURLRequest
 {
     [JsonProperty("callback")]
     [JsonConverter(typeof(UriJsonConverter))]
