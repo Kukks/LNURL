@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +8,7 @@ using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
+using STJ = System.Text.Json.Serialization;
 
 namespace LNURL;
 
@@ -24,14 +25,21 @@ public class LNAuthRequest
         Auth
     }
 
+    [JsonIgnore]
+    [STJ.JsonIgnore]
     public Uri LNUrl { get; set; }
 
+    [JsonProperty("tag")]
+    [STJ.JsonPropertyName("tag")]
+    public string Tag => "login";
 
-    [JsonProperty("tag")] public string Tag => "login";
-    [JsonProperty("k1")] public string K1 { get; set; }
+    [JsonProperty("k1")]
+    [STJ.JsonPropertyName("k1")]
+    public string K1 { get; set; }
 
     [JsonProperty("action")]
     [JsonConverter(typeof(StringEnumConverter))]
+    [STJ.JsonPropertyName("action")]
     public LNAuthRequestAction? Action { get; set; }
 
     public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)

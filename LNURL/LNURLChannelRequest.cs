@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +7,7 @@ using LNURL.JsonConverters;
 using NBitcoin;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using STJ = System.Text.Json.Serialization;
 
 namespace LNURL;
 
@@ -17,15 +18,21 @@ public class LNURLChannelRequest
 {
     [JsonProperty("uri")]
     [JsonConverter(typeof(NodeUriJsonConverter))]
+    [STJ.JsonPropertyName("uri")]
     public NodeInfo Uri { get; set; }
 
     [JsonProperty("callback")]
     [JsonConverter(typeof(UriJsonConverter))]
+    [STJ.JsonPropertyName("callback")]
     public Uri Callback { get; set; }
 
-    [JsonProperty("k1")] public string K1 { get; set; }
+    [JsonProperty("k1")]
+    [STJ.JsonPropertyName("k1")]
+    public string K1 { get; set; }
 
-    [JsonProperty("tag")] public string Tag { get; set; }
+    [JsonProperty("tag")]
+    [STJ.JsonPropertyName("tag")]
+    public string Tag { get; set; }
 
 
     public async Task SendRequest(PubKey ourId, bool privateChannel, HttpClient httpClient,
@@ -36,7 +43,7 @@ public class LNURLChannelRequest
         LNURL.AppendPayloadToQuery(uriBuilder, "k1", K1);
         LNURL.AppendPayloadToQuery(uriBuilder, "remoteid", ourId.ToString());
         LNURL.AppendPayloadToQuery(uriBuilder, "private",privateChannel? "1":"0");
-    
+
         url = new Uri(uriBuilder.ToString());
         var response = await httpClient.GetAsync(url, cancellationToken);
         var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
@@ -51,7 +58,7 @@ public class LNURLChannelRequest
         LNURL.AppendPayloadToQuery(uriBuilder, "k1", K1);
         LNURL.AppendPayloadToQuery(uriBuilder, "remoteid", ourId.ToString());
         LNURL.AppendPayloadToQuery(uriBuilder, "cancel", "1");
-        
+
         url = new Uri(uriBuilder.ToString());
         var response = await httpClient.GetAsync(url, cancellationToken);
         var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));

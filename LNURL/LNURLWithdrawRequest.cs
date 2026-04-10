@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +7,7 @@ using BTCPayServer.Lightning.JsonConverters;
 using LNURL.JsonConverters;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using STJ = System.Text.Json.Serialization;
 
 namespace LNURL;
 
@@ -17,40 +18,53 @@ public class LNURLWithdrawRequest
 {
     [JsonProperty("callback")]
     [JsonConverter(typeof(UriJsonConverter))]
+    [STJ.JsonPropertyName("callback")]
     public Uri Callback { get; set; }
 
-    [JsonProperty("k1")] public string K1 { get; set; }
+    [JsonProperty("k1")]
+    [STJ.JsonPropertyName("k1")]
+    public string K1 { get; set; }
 
-    [JsonProperty("tag")] public string Tag { get; set; }
+    [JsonProperty("tag")]
+    [STJ.JsonPropertyName("tag")]
+    public string Tag { get; set; }
 
-    [JsonProperty("defaultDescription")] public string DefaultDescription { get; set; }
+    [JsonProperty("defaultDescription")]
+    [STJ.JsonPropertyName("defaultDescription")]
+    public string DefaultDescription { get; set; }
 
     [JsonProperty("minWithdrawable")]
     [JsonConverter(typeof(LightMoneyJsonConverter))]
+    [STJ.JsonPropertyName("minWithdrawable")]
     public LightMoney MinWithdrawable { get; set; }
 
     [JsonProperty("maxWithdrawable")]
     [JsonConverter(typeof(LightMoneyJsonConverter))]
+    [STJ.JsonPropertyName("maxWithdrawable")]
     public LightMoney MaxWithdrawable { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/14.md
     [JsonProperty("currentBalance")]
     [JsonConverter(typeof(LightMoneyJsonConverter))]
+    [STJ.JsonPropertyName("currentBalance")]
     public LightMoney CurrentBalance { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/14.md
     [JsonProperty("balanceCheck")]
     [JsonConverter(typeof(UriJsonConverter))]
+    [STJ.JsonPropertyName("balanceCheck")]
     public Uri BalanceCheck { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/19.md
     [JsonProperty("payLink", NullValueHandling = NullValueHandling.Ignore)]
     [JsonConverter(typeof(UriJsonConverter))]
+    [STJ.JsonPropertyName("payLink")]
     public Uri PayLink { get; set; }
-    
+
     //https://github.com/bitcoin-ring/luds/blob/withdraw-pin/21.md
     [JsonProperty("pinLimit", NullValueHandling = NullValueHandling.Ignore)]
     [JsonConverter(typeof(LightMoneyJsonConverter))]
+    [STJ.JsonPropertyName("pinLimit")]
     public LightMoney PinLimit { get; set; }
 
     //https://github.com/fiatjaf/lnurl-rfc/blob/luds/15.md
@@ -58,7 +72,7 @@ public class LNURLWithdrawRequest
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
         return SendRequest(bolt11, httpClient, null, balanceNotify, cancellationToken);
-    }    
+    }
     public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
