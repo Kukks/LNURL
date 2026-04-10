@@ -1,0 +1,34 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": ["LNURL/LNURL.csproj"],
+          "src": ".."
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "TargetFramework": "net8.0"
+      }
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": ["api/**.yml", "api/index.md"]
+      },
+      {
+        "files": ["*.md", "toc.yml"]
+      }
+    ],
+    "resource": [],
+    "dest": "_site",
+    "globalMetadata": {
+      "_appTitle": "LNURL .NET",
+      "_appFooter": "LNURL — A .NET implementation of the LNURL protocol",
+      "_enableSearch": true
+    },
+    "template": ["default", "modern"]
+  }
+}

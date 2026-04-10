@@ -5,8 +5,13 @@ using BTCPayServer.Lightning;
 
 namespace LNURL.JsonConverters.SystemTextJson;
 
+/// <summary>
+/// System.Text.Json converter for <see cref="NodeInfo"/>, serializing and deserializing
+/// Lightning node URIs (e.g. <c>pubkey@host:port</c>) as JSON strings.
+/// </summary>
 public class STJNodeUriJsonConverter : JsonConverter<NodeInfo>
 {
+    /// <inheritdoc />
     public override NodeInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.String)
@@ -16,6 +21,7 @@ public class STJNodeUriJsonConverter : JsonConverter<NodeInfo>
         throw new JsonException("Invalid NodeUri");
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, NodeInfo value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.ToString());

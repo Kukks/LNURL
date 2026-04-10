@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using NBitcoin;
 using NBitcoin.JsonConverters;
@@ -6,8 +6,13 @@ using Newtonsoft.Json;
 
 namespace LNURL.JsonConverters;
 
+/// <summary>
+/// Newtonsoft.Json converter for <see cref="PubKey"/>, serializing and deserializing
+/// secp256k1 public keys as hex-encoded JSON strings.
+/// </summary>
 public class PubKeyJsonConverter : JsonConverter<PubKey>
 {
+    /// <inheritdoc />
     public override PubKey ReadJson(JsonReader reader, Type objectType, [AllowNull] PubKey existingValue,
         bool hasExistingValue, JsonSerializer serializer)
     {
@@ -23,6 +28,7 @@ public class PubKeyJsonConverter : JsonConverter<PubKey>
         }
     }
 
+    /// <inheritdoc />
     public override void WriteJson(JsonWriter writer, [AllowNull] PubKey value, JsonSerializer serializer)
     {
         if (value is { })

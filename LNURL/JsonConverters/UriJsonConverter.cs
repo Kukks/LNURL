@@ -1,17 +1,23 @@
-﻿using System;
+using System;
 using System.Reflection;
 using NBitcoin.JsonConverters;
 using Newtonsoft.Json;
 
 namespace LNURL.JsonConverters;
 
+/// <summary>
+/// Newtonsoft.Json converter for <see cref="Uri"/> and <see cref="string"/> URI properties.
+/// Handles null tokens, empty strings (treated as null), and ensures only absolute URIs are accepted.
+/// </summary>
 public class UriJsonConverter : JsonConverter
 {
+    /// <inheritdoc />
     public override bool CanConvert(Type objectType)
     {
         return typeof(Uri).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo()) || objectType == typeof(string);
     }
 
+    /// <inheritdoc />
     public override object ReadJson(JsonReader reader, Type objectType, object existingValue,
         JsonSerializer serializer)
     {
@@ -34,6 +40,7 @@ public class UriJsonConverter : JsonConverter
         }
     }
 
+    /// <inheritdoc />
     public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
     {
         switch (value)

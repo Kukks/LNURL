@@ -5,8 +5,13 @@ using static LNURL.LNURLPayRequest.LNURLPayRequestCallbackResponse;
 
 namespace LNURL.JsonConverters.SystemTextJson;
 
+/// <summary>
+/// System.Text.Json converter for polymorphic deserialization of <see cref="ILNURLPayRequestSuccessAction"/>
+/// based on the <c>tag</c> property (LUD-09). Supports <c>"message"</c>, <c>"url"</c>, and <c>"aes"</c> tags.
+/// </summary>
 public class STJSuccessActionJsonConverter : JsonConverter<ILNURLPayRequestSuccessAction>
 {
+    /// <inheritdoc />
     public override ILNURLPayRequestSuccessAction Read(ref Utf8JsonReader reader, Type typeToConvert,
         JsonSerializerOptions options)
     {
@@ -29,6 +34,7 @@ public class STJSuccessActionJsonConverter : JsonConverter<ILNURLPayRequestSucce
         };
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, ILNURLPayRequestSuccessAction value,
         JsonSerializerOptions options)
     {

@@ -5,8 +5,13 @@ using BTCPayServer.Lightning;
 
 namespace LNURL.JsonConverters.SystemTextJson;
 
+/// <summary>
+/// System.Text.Json converter for <see cref="LightMoney"/>, handling numeric and string
+/// representations of millisatoshi values.
+/// </summary>
 public class STJLightMoneyJsonConverter : JsonConverter<LightMoney>
 {
+    /// <inheritdoc />
     public override LightMoney Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
@@ -23,6 +28,7 @@ public class STJLightMoneyJsonConverter : JsonConverter<LightMoney>
         throw new JsonException("Invalid LightMoney value");
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, LightMoney value, JsonSerializerOptions options)
     {
         if (value is null)

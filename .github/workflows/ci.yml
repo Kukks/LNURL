@@ -1,6 +1,5 @@
 name: 'Publish application'
 on:
-  # Run the build for pushes and pull requests targeting master
   push:
     branches:
       - master
@@ -12,19 +11,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Checkout the code
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      # Install .NET Core SDK
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      # Run tests
+
       - name: Test
         run: dotnet test
+
       - name: Publish NuGet
-        if: ${{ github.ref == 'refs/heads/master' }} # Publish only when the push is on master
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: Rebel028/publish-nuget@v2.7.0
         with:
           PROJECT_FILE_PATH: LNURL/LNURL.csproj
@@ -36,7 +34,7 @@ jobs:
           TAG_FORMAT: v*
 
       - name: Publish Github Package Registry
-        if: ${{ github.ref == 'refs/heads/master' }} # Publish only when the push is on master
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: Rebel028/publish-nuget@v2.7.0
         with:
           PROJECT_FILE_PATH: LNURL/LNURL.csproj

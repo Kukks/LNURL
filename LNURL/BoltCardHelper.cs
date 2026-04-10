@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -7,11 +7,23 @@ using NBitcoin.DataEncoders;
 
 namespace LNURL
 {
+    /// <summary>
+    /// Provides helper methods for working with BoltCard NFC cards, including
+    /// decrypting the <c>p</c> parameter to extract UID and counter values,
+    /// verifying CMAC authentication codes, and creating <c>p</c> and <c>c</c> values.
+    /// </summary>
     public class BoltCardHelper
     {
         private const int AES_BLOCK_SIZE = 16;
 
 
+        /// <summary>
+        /// Extracts the UID and tap counter from a hex-encoded <c>p</c> parameter by decrypting it with the given AES key.
+        /// </summary>
+        /// <param name="pHex">The hex-encoded encrypted <c>p</c> parameter from the BoltCard NFC tap.</param>
+        /// <param name="aesKey">The 16-byte AES key used for decryption.</param>
+        /// <param name="error">When this method returns <c>null</c>, contains an error description; otherwise <c>null</c>.</param>
+        /// <returns>A tuple containing the UID string, counter value, raw UID bytes, and raw counter bytes; or <c>null</c> on failure.</returns>
         public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr)? ExtractUidAndCounterFromP(string pHex,
             byte[] aesKey, out string? error)
         {
@@ -24,6 +36,14 @@ namespace LNURL
             return ExtractUidAndCounterFromP(Convert.FromHexString(pHex), aesKey, out error);
         }
 
+        /// <summary>
+        /// Extracts the UID and tap counter from the raw <c>p</c> parameter bytes by decrypting with the given AES key.
+        /// The decrypted data must start with <c>0xC7</c> to be considered valid.
+        /// </summary>
+        /// <param name="p">The 16-byte encrypted <c>p</c> parameter.</param>
+        /// <param name="aesKey">The 16-byte AES key used for decryption.</param>
+        /// <param name="error">When this method returns <c>null</c>, contains an error description; otherwise <c>null</c>.</param>
+        /// <returns>A tuple containing the UID string, counter value, raw UID bytes, and raw counter bytes; or <c>null</c> on failure.</returns>
         public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr)? ExtractUidAndCounterFromP(byte[] p,
             byte[] aesKey, out string? error)
         {
@@ -62,12 +82,13 @@ namespace LNURL
         }
 
         /// <summary>
-        /// Extracts BoltCard information from a given request URI.
+        /// Extracts BoltCard information from a given request URI by decrypting the <c>p</c> parameter
+        /// and reading the <c>c</c> (CMAC) parameter.
         /// </summary>
-        /// <param name="requestUri">The URI containing BoltCard data.</param>
-        /// <param name="aesKey">The AES key for decryption.</param>
-        /// <param name="error">Outputs an error string if extraction fails.</param>
-        /// <returns>A tuple containing the UID and counter if successful; null otherwise.</returns>
+        /// <param name="requestUri">The URI containing BoltCard <c>p</c> and <c>c</c> query parameters.</param>
+        /// <param name="aesKey">The 16-byte AES key for decryption.</param>
+        /// <param name="error">Outputs an error string if extraction fails; otherwise <c>null</c>.</param>
+        /// <returns>A tuple containing the UID, counter, raw UID bytes, raw counter bytes, and raw CMAC bytes; or <c>null</c> on failure.</returns>
         public static (string uid, uint counter, byte[] rawUid, byte[] rawCtr, byte[] c)? ExtractBoltCardFromRequest(
             Uri requestUri, byte[] aesKey,
             out string error)
@@ -210,14 +231,15 @@ namespace LNURL
         }
 
         /// <summary>
-        /// Verifies the CMAC for given UID, counter, key, and CMAC data.
+        /// Verifies the CMAC authentication code for a BoltCard tap by computing the expected CMAC
+        /// from the UID, counter, and CMAC key, then comparing it against the provided CMAC.
         /// </summary>
-        /// <param name="uid">The user ID.</param>
-        /// <param name="ctr">The counter data.</param>
-        /// <param name="k2CmacKey">The CMAC key.</param>
-        /// <param name="cmac">The CMAC data to verify against.</param>
-        /// <param name="error">Outputs an error string if verification fails.</param>
-        /// <returns>True if CMAC verification is successful, otherwise false.</returns>
+        /// <param name="uid">The 7-byte card UID.</param>
+        /// <param name="ctr">The 3-byte tap counter.</param>
+        /// <param name="k2CmacKey">The 16-byte AES key used for CMAC computation.</param>
+        /// <param name="cmac">The 8-byte CMAC to verify against.</param>
+        /// <param name="error">Outputs an error string if verification fails; otherwise <c>null</c>.</param>
+        /// <returns><c>true</c> if CMAC verification succeeds; otherwise <c>false</c>.</returns>
         public static bool CheckCmac(byte[] uid, byte[] ctr, byte[] k2CmacKey, byte[] cmac, out string error)
         {
             if (uid.Length != 7 || ctr.Length != 3 || k2CmacKey.Length != AES_BLOCK_SIZE)
@@ -259,6 +281,13 @@ namespace LNURL
             }
         }
 
+        /// <summary>
+        /// Creates the CMAC (<c>c</c>) value for a BoltCard from the UID string, counter, and CMAC key.
+        /// </summary>
+        /// <param name="uid">The hex-encoded 7-byte card UID.</param>
+        /// <param name="counter">The tap counter value.</param>
+        /// <param name="k2CmacKey">The 16-byte AES key used for CMAC computation.</param>
+        /// <returns>The computed 8-byte CMAC value.</returns>
         public static byte[] CreateCValue(string uid, uint counter, byte[] k2CmacKey)
         {
             var ctr = new byte[3];
@@ -270,6 +299,14 @@ namespace LNURL
             return CreateCValue(uidBytes, ctr, k2CmacKey);
         }
 
+        /// <summary>
+        /// Creates the CMAC (<c>c</c>) value for a BoltCard from raw UID bytes, counter bytes, and CMAC key.
+        /// </summary>
+        /// <param name="uid">The 7-byte card UID.</param>
+        /// <param name="counter">The 3-byte tap counter (little-endian).</param>
+        /// <param name="k2CmacKey">The 16-byte AES key used for CMAC computation.</param>
+        /// <returns>The computed 8-byte CMAC value.</returns>
+        /// <exception cref="ArgumentException">Thrown when input arrays have invalid lengths.</exception>
         public static byte[] CreateCValue(byte[] uid, byte[] counter, byte[] k2CmacKey)
         {
             if (uid.Length != 7 || counter.Length != 3 || k2CmacKey.Length != AES_BLOCK_SIZE)
@@ -289,6 +326,14 @@ namespace LNURL
             return computedCmac;
         }
 
+        /// <summary>
+        /// Creates the encrypted <c>p</c> value for a BoltCard by constructing the plaintext block
+        /// (starting with <c>0xC7</c>, followed by UID and counter) and encrypting it with AES-CBC.
+        /// </summary>
+        /// <param name="aesKey">The 16-byte AES key used for encryption.</param>
+        /// <param name="counter">The tap counter value.</param>
+        /// <param name="uid">The hex-encoded 7-byte card UID.</param>
+        /// <returns>The 16-byte encrypted <c>p</c> value.</returns>
         public static byte[] CreatePValue(byte[] aesKey, uint counter, string uid)
         {
             using var aes = Aes.Create();
@@ -321,7 +366,7 @@ namespace LNURL
             encryptedData = memoryStream.ToArray();
 
             var result = ExtractUidAndCounterFromP(encryptedData, aesKey, out var error);
-            
+
             return encryptedData;
         }
     }

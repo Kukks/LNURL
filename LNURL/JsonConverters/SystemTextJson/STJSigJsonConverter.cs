@@ -6,8 +6,13 @@ using NBitcoin.DataEncoders;
 
 namespace LNURL.JsonConverters.SystemTextJson;
 
+/// <summary>
+/// System.Text.Json converter for <see cref="ECDSASignature"/>, serializing and deserializing
+/// ECDSA signatures as hex-encoded DER-format JSON strings.
+/// </summary>
 public class STJSigJsonConverter : JsonConverter<ECDSASignature>
 {
+    /// <inheritdoc />
     public override ECDSASignature Read(ref Utf8JsonReader reader, Type typeToConvert,
         JsonSerializerOptions options)
     {
@@ -16,6 +21,7 @@ public class STJSigJsonConverter : JsonConverter<ECDSASignature>
         return ECDSASignature.FromDER(Encoders.Hex.DecodeData(reader.GetString()));
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, ECDSASignature value, JsonSerializerOptions options)
     {
         if (value is not null)

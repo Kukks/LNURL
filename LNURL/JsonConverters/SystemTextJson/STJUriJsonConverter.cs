@@ -4,8 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace LNURL.JsonConverters.SystemTextJson;
 
+/// <summary>
+/// System.Text.Json converter for <see cref="Uri"/>, handling null and empty string values
+/// and ensuring only absolute URIs are accepted during deserialization.
+/// </summary>
 public class STJUriJsonConverter : JsonConverter<Uri>
 {
+    /// <inheritdoc />
     public override Uri Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
@@ -18,6 +23,7 @@ public class STJUriJsonConverter : JsonConverter<Uri>
         throw new JsonException("Invalid Uri value");
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, Uri value, JsonSerializerOptions options)
     {
         if (value is null)

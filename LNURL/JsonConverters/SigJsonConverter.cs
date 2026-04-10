@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
@@ -7,8 +7,13 @@ using Newtonsoft.Json;
 
 namespace LNURL.JsonConverters;
 
+/// <summary>
+/// Newtonsoft.Json converter for <see cref="ECDSASignature"/>, serializing and deserializing
+/// ECDSA signatures as hex-encoded DER-format JSON strings.
+/// </summary>
 public class SigJsonConverter : JsonConverter<ECDSASignature>
 {
+    /// <inheritdoc />
     public override ECDSASignature ReadJson(JsonReader reader, Type objectType,
         [AllowNull] ECDSASignature existingValue, bool hasExistingValue, JsonSerializer serializer)
     {
@@ -24,6 +29,7 @@ public class SigJsonConverter : JsonConverter<ECDSASignature>
         }
     }
 
+    /// <inheritdoc />
     public override void WriteJson(JsonWriter writer, [AllowNull] ECDSASignature value, JsonSerializer serializer)
     {
         if (value is { })
