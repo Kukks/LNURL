@@ -21,7 +21,19 @@ jobs:
       - name: Test
         run: dotnet test
 
-      - name: Publish NuGet
+      - name: Publish LNURL.Core NuGet
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: Rebel028/publish-nuget@v2.7.0
+        with:
+          PROJECT_FILE_PATH: LNURL.Core/LNURL.Core.csproj
+          NUGET_KEY: ${{secrets.NUGET_KEY}}
+          PACKAGE_NAME: LNURL.Core
+          INCLUDE_SYMBOLS: false
+          VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
+          TAG_COMMIT: false
+          TAG_FORMAT: core-v*
+
+      - name: Publish LNURL NuGet
         if: ${{ github.ref == 'refs/heads/master' }}
         uses: Rebel028/publish-nuget@v2.7.0
         with:
@@ -33,7 +45,20 @@ jobs:
           TAG_COMMIT: true
           TAG_FORMAT: v*
 
-      - name: Publish Github Package Registry
+      - name: Publish LNURL.Core Github Package Registry
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: Rebel028/publish-nuget@v2.7.0
+        with:
+          PROJECT_FILE_PATH: LNURL.Core/LNURL.Core.csproj
+          NUGET_SOURCE: "https://nuget.pkg.github.com/Kukks"
+          NUGET_KEY: ${{secrets.GH_TOKEN}}
+          PACKAGE_NAME: LNURL.Core
+          INCLUDE_SYMBOLS: false
+          VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
+          TAG_COMMIT: false
+          TAG_FORMAT: core-v*
+
+      - name: Publish LNURL Github Package Registry
         if: ${{ github.ref == 'refs/heads/master' }}
         uses: Rebel028/publish-nuget@v2.7.0
         with:

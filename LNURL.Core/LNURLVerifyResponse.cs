@@ -1,9 +1,9 @@
 using System;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using STJ = System.Text.Json.Serialization;
 
 namespace LNURL;
@@ -54,10 +54,10 @@ public class LNURLVerifyResponse
         CancellationToken cancellationToken = default)
     {
         var response = await httpClient.GetAsync(verifyUrl, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        if (LNUrlStatusResponse.IsErrorResponse(json, out var error))
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (LNUrlStatusResponse.IsErrorResponse(content, out var error))
             throw new LNUrlException(error.Reason);
 
-        return json.ToObject<LNURLVerifyResponse>();
+        return System.Text.Json.JsonSerializer.Deserialize<LNURLVerifyResponse>(content, LNURLJsonOptions.Default);
     }
 }

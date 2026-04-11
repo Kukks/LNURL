@@ -3,13 +3,32 @@
 A comprehensive .NET implementation of the [LNURL protocol](https://github.com/lnurl/luds) for the Bitcoin Lightning Network.
 
 [![NuGet](https://img.shields.io/nuget/v/LNURL.svg)](https://www.nuget.org/packages/LNURL)
+[![NuGet LNURL.Core](https://img.shields.io/nuget/v/LNURL.Core.svg?label=LNURL.Core)](https://www.nuget.org/packages/LNURL.Core)
 [![Build](https://github.com/Kukks/LNURL/actions/workflows/ci.yml/badge.svg)](https://github.com/Kukks/LNURL/actions/workflows/ci.yml)
 [![API Docs](https://img.shields.io/badge/docs-API%20Reference-blue)](https://kukks.github.io/LNURL/)
+
+## Packages
+
+| Package | Description | Dependencies |
+|---------|-------------|--------------|
+| **[LNURL](https://www.nuget.org/packages/LNURL)** | Full package with Newtonsoft.Json runtime support | LNURL.Core + Newtonsoft.Json |
+| **[LNURL.Core](https://www.nuget.org/packages/LNURL.Core)** | Core types and System.Text.Json support only | BTCPayServer.Lightning.Common |
+
+### Which package should I use?
+
+- **Use `LNURL`** if you already use Newtonsoft.Json in your project, or want backward compatibility with previous versions.
+- **Use `LNURL.Core`** if you want to avoid the Newtonsoft.Json transitive dependency and prefer System.Text.Json only.
+
+Both packages share the same namespace (`LNURL`) and identical class/property names. Switching between them requires only a package reference change, not code changes.
 
 ## Installation
 
 ```bash
+# Full package (includes Newtonsoft.Json support)
 dotnet add package LNURL
+
+# Or: Core package only (no Newtonsoft.Json runtime dependency)
+dotnet add package LNURL.Core
 ```
 
 ## Supported LUD Specifications
@@ -245,9 +264,9 @@ if (result != null)
 
 The library supports both **Newtonsoft.Json** and **System.Text.Json**.
 
-### Newtonsoft.Json (default)
+### Newtonsoft.Json
 
-All model classes are decorated with `[JsonProperty]` attributes. Newtonsoft.Json works out of the box:
+Requires the `LNURL` package (not just `LNURL.Core`). All model classes have `[JsonProperty]` attributes that work when Newtonsoft.Json is present at runtime:
 
 ```csharp
 using Newtonsoft.Json;
@@ -258,7 +277,7 @@ var json = JsonConvert.SerializeObject(payRequest);
 
 ### System.Text.Json
 
-All model classes also have `[JsonPropertyName]` attributes. Use the pre-configured options from `LNURLJsonOptions`:
+Works with either `LNURL` or `LNURL.Core`. Use the pre-configured options from `LNURLJsonOptions`:
 
 ```csharp
 using System.Text.Json;
@@ -275,15 +294,28 @@ LNURLJsonOptions.AddConverters(myOptions);
 
 The `LNURLJsonOptions.Default` instance includes converters for `Uri`, `LightMoney`, `NodeInfo`, `PubKey`, `ECDSASignature`, and polymorphic success action deserialization.
 
+## Migrating from `LNURL` to `LNURL.Core`
+
+If you want to drop the Newtonsoft.Json dependency:
+
+1. Replace `dotnet add package LNURL` with `dotnet add package LNURL.Core`
+2. Replace `JsonConvert.DeserializeObject<T>(json)` with `JsonSerializer.Deserialize<T>(json, LNURLJsonOptions.Default)`
+3. Replace `JsonConvert.SerializeObject(obj)` with `JsonSerializer.Serialize(obj, LNURLJsonOptions.Default)`
+4. The `AdditionalData` property (which used `IDictionary<string, JToken>`) has been removed from `LNURLPayRequest`
+
+No other API changes are needed. All class names, property names, and method signatures are identical.
+
 ## API Documentation
 
 Full API documentation is automatically generated from XML doc comments and published to **[GitHub Pages](https://kukks.github.io/LNURL/)**.
 
 ## Dependencies
 
-- [BTCPayServer.Lightning.Common](https://www.nuget.org/packages/BTCPayServer.Lightning.Common) — Lightning Network types (`LightMoney`, `NodeInfo`, `BOLT11PaymentRequest`)
+### LNURL.Core
+- [BTCPayServer.Lightning.Common](https://www.nuget.org/packages/BTCPayServer.Lightning.Common) — Lightning Network types
+
+### LNURL (adds on top of Core)
 - [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) — JSON serialization
-- [Microsoft.AspNet.WebApi.Client](https://www.nuget.org/packages/Microsoft.AspNet.WebApi.Client) — HTTP utilities
 
 ## Requirements
 

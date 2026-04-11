@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using STJ = System.Text.Json.Serialization;
@@ -28,7 +29,34 @@ public class LNUrlStatusResponse
     public string Reason { get; set; }
 
     /// <summary>
+    /// Determines whether the given JSON string represents an LNURL error response.
+    /// </summary>
+    /// <param name="json">The raw JSON string to inspect.</param>
+    /// <param name="status">
+    /// When this method returns <c>true</c>, contains the deserialized <see cref="LNUrlStatusResponse"/>;
+    /// otherwise <c>null</c>.
+    /// </param>
+    /// <returns><c>true</c> if the response contains a <c>status</c> field equal to <c>"ERROR"</c>; otherwise <c>false</c>.</returns>
+    public static bool IsErrorResponse(string json, out LNUrlStatusResponse status)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("status", out var statusElement))
+        {
+            var statusStr = statusElement.GetString();
+            if (statusStr?.Equals("Error", StringComparison.InvariantCultureIgnoreCase) == true)
+            {
+                status = System.Text.Json.JsonSerializer.Deserialize<LNUrlStatusResponse>(json, LNURLJsonOptions.Default);
+                return true;
+            }
+        }
+
+        status = null;
+        return false;
+    }
+
+    /// <summary>
     /// Determines whether the given JSON response represents an LNURL error response.
+    /// This overload accepts a Newtonsoft.Json <see cref="JObject"/> for backward compatibility.
     /// </summary>
     /// <param name="response">The JSON object to inspect.</param>
     /// <param name="status">

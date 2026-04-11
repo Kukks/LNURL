@@ -1,12 +1,12 @@
 using System;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.JsonConverters;
 using LNURL.JsonConverters;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using STJ = System.Text.Json.Serialization;
 
 namespace LNURL;
@@ -14,8 +14,6 @@ namespace LNURL;
 /// <summary>
 /// Represents an LNURL-withdraw request as defined in LUD-03.
 /// Allows a wallet to withdraw funds by providing a BOLT11 invoice to the service.
-/// Also supports LUD-14 (balance check/notify), LUD-15 (balance notify parameter),
-/// and LUD-19 (pay link).
 /// </summary>
 public class LNURLWithdrawRequest
 {
@@ -28,7 +26,7 @@ public class LNURLWithdrawRequest
     public Uri Callback { get; set; }
 
     /// <summary>
-    /// Gets or sets the unique identifier for this withdraw request. Must be included in the callback.
+    /// Gets or sets the unique identifier for this withdraw request.
     /// </summary>
     [JsonProperty("k1")]
     [STJ.JsonPropertyName("k1")]
@@ -98,13 +96,7 @@ public class LNURLWithdrawRequest
 
     /// <summary>
     /// Sends a withdrawal request to the service callback with the specified BOLT11 invoice.
-    /// This is a convenience overload without PIN support.
     /// </summary>
-    /// <param name="bolt11">The BOLT11 payment request (invoice) string for receiving the withdrawn funds.</param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <param name="balanceNotify">An optional URL the service should call when the wallet's balance changes (LUD-15).</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <returns>An <see cref="LNUrlStatusResponse"/> indicating success or failure.</returns>
     public Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
@@ -115,12 +107,6 @@ public class LNURLWithdrawRequest
     /// Sends a withdrawal request to the service callback with the specified BOLT11 invoice,
     /// optional PIN, and optional balance notification URL.
     /// </summary>
-    /// <param name="bolt11">The BOLT11 payment request (invoice) string for receiving the withdrawn funds.</param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <param name="pin">An optional PIN for BoltCard withdraw-pin support.</param>
-    /// <param name="balanceNotify">An optional URL the service should call when the wallet's balance changes (LUD-15).</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <returns>An <see cref="LNUrlStatusResponse"/> indicating success or failure.</returns>
     public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
@@ -133,8 +119,8 @@ public class LNURLWithdrawRequest
 
         url = new Uri(uriBuilder.ToString());
         var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        return json.ToObject<LNUrlStatusResponse>();
+        return System.Text.Json.JsonSerializer.Deserialize<LNUrlStatusResponse>(content, LNURLJsonOptions.Default);
     }
 }

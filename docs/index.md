@@ -2,11 +2,20 @@
 
 Welcome to the API documentation for the **LNURL** .NET library, a comprehensive implementation of the [LNURL protocol](https://github.com/lnurl/luds) for the Bitcoin Lightning Network.
 
+## Packages
+
+| Package | Description |
+|---------|-------------|
+| **LNURL.Core** | Core types and System.Text.Json support (no Newtonsoft.Json runtime dependency) |
+| **LNURL** | Full package — re-exports everything from Core with Newtonsoft.Json runtime support |
+
 ## Getting Started
 
-Install the package:
-
 ```bash
+# System.Text.Json only (lighter dependency)
+dotnet add package LNURL.Core
+
+# Or: with Newtonsoft.Json support
 dotnet add package LNURL
 ```
 
@@ -31,7 +40,7 @@ var result = await LNURL.LNURL.FetchInformation(uri, httpClient);
 
 ## JSON Serialization
 
-The library supports both **Newtonsoft.Json** (via `[JsonProperty]` attributes) and **System.Text.Json** (via [`LNURLJsonOptions`](api/LNURL.LNURLJsonOptions.html)).
+The library supports both **Newtonsoft.Json** (via `[JsonProperty]` attributes, requires the `LNURL` package) and **System.Text.Json** (via [`LNURLJsonOptions`](api/LNURL.LNURLJsonOptions.html), works with either package).
 
 ## Source Code
 

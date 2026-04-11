@@ -3,7 +3,7 @@
     {
       "src": [
         {
-          "files": ["LNURL/LNURL.csproj"],
+          "files": ["LNURL.Core/LNURL.Core.csproj"],
           "src": ".."
         }
       ],

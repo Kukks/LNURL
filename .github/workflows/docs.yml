@@ -30,7 +30,7 @@ jobs:
         run: dotnet tool install -g docfx
 
       - name: Build project (generates XML docs)
-        run: dotnet build -c Release LNURL/LNURL.csproj
+        run: dotnet build -c Release LNURL.Core/LNURL.Core.csproj
 
       - name: Generate docs
         run: docfx docs/docfx.json

@@ -2,12 +2,14 @@
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
+        <RootNamespace>LNURL</RootNamespace>
         <Authors>Andrew Camilleri (kukks)</Authors>
         <Copyright>MIT</Copyright>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Description>LNURL protocol implementation in .NET Core — includes Newtonsoft.Json support</Description>
+        <Description>LNURL protocol core types and System.Text.Json support for .NET — no Newtonsoft.Json runtime dependency</Description>
         <PackageTags>bitcoin lightning lnurl</PackageTags>
-        <PackageVersion>0.0.36</PackageVersion>
+        <PackageVersion>0.0.1</PackageVersion>
+        <PackageId>LNURL.Core</PackageId>
         <RepositoryUrl>https://github.com/Kukks/LNURL.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -21,8 +23,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\LNURL.Core\LNURL.Core.csproj" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" PrivateAssets="all" />
+        <PackageReference Include="BTCPayServer.Lightning.Common" Version="1.5.1"/>
     </ItemGroup>
 
 </Project>

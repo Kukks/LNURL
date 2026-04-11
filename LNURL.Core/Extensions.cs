@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Specialized;
 using System.Net;
+using System.Web;
 using NBitcoin;
 
 namespace LNURL;
@@ -46,5 +48,10 @@ public static class Extensions
         if (IPAddress.TryParse(server.Host, out var ip)) return ip.IsLocal() || ip.IsRFC1918();
 
         return false;
+    }
+
+    internal static NameValueCollection ParseQueryString(this Uri uri)
+    {
+        return HttpUtility.ParseQueryString(uri.Query);
     }
 }

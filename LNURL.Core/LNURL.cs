@@ -5,9 +5,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 
 namespace LNURL;
 
@@ -64,16 +64,6 @@ public class LNURL
     /// Thrown when the decoded URL is not secure (must be HTTPS, .onion, or local network),
     /// or the string is not a valid bech32 LNURL or LUD-17 URI.
     /// </exception>
-    /// <example>
-    /// <code>
-    /// var uri = LNURL.Parse("lnurl1dp68gurn8ghj7...", out string tag);
-    /// // uri = https://service.example.com/lnurl?tag=payRequest
-    /// // tag = "payRequest"
-    ///
-    /// var uri2 = LNURL.Parse("lnurlp://service.example.com/pay", out string tag2);
-    /// // tag2 = "payRequest"
-    /// </code>
-    /// </example>
     public static Uri Parse(string lnurl, out string tag)
     {
         lnurl = lnurl.Replace("lightning:", "", StringComparison.InvariantCultureIgnoreCase);
@@ -100,21 +90,12 @@ public class LNURL
 
     /// <summary>
     /// Encodes a service URL into a bech32-formatted LNURL string as specified by LUD-01.
-    /// The resulting string uses <c>"lnurl"</c> as the human-readable part (HRP).
     /// </summary>
-    /// <param name="serviceUrl">
-    /// The HTTPS, .onion, or local-network service URL to encode.
-    /// </param>
-    /// <returns>A bech32-encoded LNURL string (e.g. <c>lnurl1dp68gurn8ghj7...</c>).</returns>
+    /// <param name="serviceUrl">The HTTPS, .onion, or local-network service URL to encode.</param>
+    /// <returns>A bech32-encoded LNURL string.</returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="serviceUrl"/> is not HTTPS, an onion service, or on the local network.
     /// </exception>
-    /// <example>
-    /// <code>
-    /// string encoded = LNURL.EncodeBech32(new Uri("https://service.example.com/lnurl?tag=payRequest"));
-    /// // encoded = "lnurl1dp68gurn8ghj7..."
-    /// </code>
-    /// </example>
     public static string EncodeBech32(Uri serviceUrl)
     {
         if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork())
@@ -125,21 +106,12 @@ public class LNURL
     }
 
     /// <summary>
-    /// Encodes a service URL into either a bech32 LNURL (LUD-01) or a LUD-17 scheme-based URI,
-    /// wrapped in a <c>lightning:</c> prefix when using bech32.
+    /// Encodes a service URL into either a bech32 LNURL (LUD-01) or a LUD-17 scheme-based URI.
     /// </summary>
     /// <param name="serviceUrl">The HTTPS, .onion, or local-network service URL to encode.</param>
-    /// <param name="tag">
-    /// The LNURL tag (e.g. <c>"payRequest"</c>, <c>"withdrawRequest"</c>, <c>"channelRequest"</c>, <c>"login"</c>).
-    /// If <c>null</c> or empty, it is extracted from the <paramref name="serviceUrl"/> query string.
-    /// </param>
-    /// <param name="bech32">
-    /// If <c>true</c>, returns a <c>lightning:lnurl1...</c> URI; if <c>false</c>, returns a LUD-17 scheme URI.
-    /// </param>
+    /// <param name="tag">The LNURL tag. If <c>null</c>, extracted from the URL query string.</param>
+    /// <param name="bech32">If <c>true</c>, returns a <c>lightning:lnurl1...</c> URI; otherwise a LUD-17 scheme URI.</param>
     /// <returns>A <see cref="Uri"/> in the chosen encoding format.</returns>
-    /// <exception cref="ArgumentException">Thrown when the service URL scheme is invalid.</exception>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> cannot be determined.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="tag"/> is not a recognized LNURL tag.</exception>
     public static Uri EncodeUri(Uri serviceUrl, string tag, bool bech32)
     {
         if (serviceUrl.Scheme != "https" && !serviceUrl.IsOnion() && !serviceUrl.IsLocalNetwork())
@@ -167,13 +139,11 @@ public class LNURL
 
     /// <summary>
     /// Fetches a <see cref="LNURLPayRequest"/> for the given Lightning Address (internet identifier)
-    /// as specified by LUD-16. This is a convenience overload without cancellation support.
+    /// as specified by LUD-16.
     /// </summary>
     /// <param name="identifier">A Lightning Address in the form <c>user@domain</c>.</param>
     /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
     /// <returns>The <see cref="LNURLPayRequest"/> fetched from the well-known LNURL-pay endpoint.</returns>
-    /// <seealso cref="ExtractUriFromInternetIdentifier"/>
-    //https://github.com/fiatjaf/lnurl-rfc/blob/luds/16.md
     public static Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
         HttpClient httpClient)
     {
@@ -184,17 +154,10 @@ public class LNURL
     /// Fetches a <see cref="LNURLPayRequest"/> for the given Lightning Address (internet identifier)
     /// as specified by LUD-16.
     /// </summary>
-    /// <param name="identifier">A Lightning Address in the form <c>user@domain</c> (e.g. <c>alice@pay.example.com</c>).</param>
+    /// <param name="identifier">A Lightning Address in the form <c>user@domain</c>.</param>
     /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The <see cref="LNURLPayRequest"/> fetched from the well-known LNURL-pay endpoint.</returns>
-    /// <example>
-    /// <code>
-    /// var payRequest = await LNURL.FetchPayRequestViaInternetIdentifier("alice@pay.example.com", httpClient);
-    /// // payRequest.MinSendable, payRequest.MaxSendable, etc.
-    /// </code>
-    /// </example>
-    /// <seealso cref="ExtractUriFromInternetIdentifier"/>
     public static async Task<LNURLPayRequest> FetchPayRequestViaInternetIdentifier(string identifier,
         HttpClient httpClient, CancellationToken cancellationToken)
     {
@@ -204,8 +167,6 @@ public class LNURL
 
     /// <summary>
     /// Converts a Lightning Address (internet identifier per LUD-16) to its well-known LNURL-pay URL.
-    /// For example, <c>alice@pay.example.com</c> becomes <c>https://pay.example.com/.well-known/lnurlp/alice</c>.
-    /// Onion addresses automatically use <c>http</c> instead of <c>https</c>.
     /// </summary>
     /// <param name="identifier">A Lightning Address in the form <c>user@domain</c> or <c>user@domain:port</c>.</param>
     /// <returns>The well-known LNURL-pay <see cref="Uri"/> for the given identifier.</returns>
@@ -235,40 +196,13 @@ public class LNURL
 
     /// <summary>
     /// Fetches LNURL endpoint information from the given URL, automatically determining the response type.
-    /// This is a convenience overload without cancellation support.
     /// </summary>
-    /// <param name="lnUrl">The LNURL endpoint URL (may be a raw URL or an encoded LNURL).</param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <returns>
-    /// A typed LNURL response object: <see cref="LNURLPayRequest"/>, <see cref="LNURLWithdrawRequest"/>,
-    /// <see cref="LNURLChannelRequest"/>, <see cref="LNURLHostedChannelRequest"/>, <see cref="LNAuthRequest"/>,
-    /// or <see cref="LNUrlStatusResponse"/> on error.
-    /// </returns>
-    /// <example>
-    /// <code>
-    /// var result = await LNURL.FetchInformation(new Uri("https://service.example.com/lnurl?tag=payRequest"), httpClient);
-    /// if (result is LNURLPayRequest payRequest)
-    /// {
-    ///     // Handle pay request
-    /// }
-    /// </code>
-    /// </example>
     public static Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient)
     {
         return FetchInformation(lnUrl, httpClient, default);
     }
 
-    /// <summary>
-    /// Fetches LNURL endpoint information from the given URL, automatically determining the response type.
-    /// </summary>
-    /// <param name="lnUrl">The LNURL endpoint URL (may be a raw URL or an encoded LNURL).</param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <returns>
-    /// A typed LNURL response object: <see cref="LNURLPayRequest"/>, <see cref="LNURLWithdrawRequest"/>,
-    /// <see cref="LNURLChannelRequest"/>, <see cref="LNURLHostedChannelRequest"/>, <see cref="LNAuthRequest"/>,
-    /// or <see cref="LNUrlStatusResponse"/> on error.
-    /// </returns>
+    /// <inheritdoc cref="FetchInformation(Uri, HttpClient)"/>
     public static async Task<object> FetchInformation(Uri lnUrl, HttpClient httpClient, CancellationToken cancellationToken)
     {
         return await FetchInformation(lnUrl, null, httpClient, cancellationToken);
@@ -276,15 +210,7 @@ public class LNURL
 
     /// <summary>
     /// Fetches LNURL endpoint information from the given URL with an explicit tag hint.
-    /// This is a convenience overload without cancellation support.
     /// </summary>
-    /// <param name="lnUrl">The LNURL endpoint URL (may be a raw URL or an encoded LNURL).</param>
-    /// <param name="tag">
-    /// An optional tag hint (e.g. <c>"payRequest"</c>, <c>"withdrawRequest"</c>) to specify the expected response type.
-    /// If <c>null</c>, the tag is auto-detected from the URL or response.
-    /// </param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <returns>A typed LNURL response object.</returns>
     public static Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient)
     {
         return FetchInformation(lnUrl, tag, httpClient, default);
@@ -294,19 +220,6 @@ public class LNURL
     /// Fetches LNURL endpoint information from the given URL with an explicit tag hint.
     /// Supports fast withdraw (LUD-03 query-string parameters) and LNURL-auth (LUD-04) inline parsing.
     /// </summary>
-    /// <param name="lnUrl">The LNURL endpoint URL (may be a raw URL or an encoded LNURL).</param>
-    /// <param name="tag">
-    /// An optional tag hint (e.g. <c>"payRequest"</c>, <c>"withdrawRequest"</c>, <c>"login"</c>)
-    /// to specify the expected response type. If <c>null</c>, the tag is auto-detected.
-    /// </param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <returns>
-    /// A typed LNURL response object: <see cref="LNURLPayRequest"/>, <see cref="LNURLWithdrawRequest"/>,
-    /// <see cref="LNURLChannelRequest"/>, <see cref="LNURLHostedChannelRequest"/>, <see cref="LNAuthRequest"/>,
-    /// or <see cref="LNUrlStatusResponse"/> on error.
-    /// </returns>
-    /// <exception cref="LNUrlException">Thrown when no tag can be determined from the endpoint response.</exception>
     public static async Task<object> FetchInformation(Uri lnUrl, string tag, HttpClient httpClient, CancellationToken cancellationToken)
     {
         try
@@ -319,7 +232,6 @@ public class LNURL
         }
 
         if (tag is null) tag = lnUrl.ParseQueryString().Get("tag");
-        JObject json;
         NameValueCollection queryString;
         HttpResponseMessage response;
         string k1;
@@ -327,17 +239,19 @@ public class LNURL
         {
             case null:
                 response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                if (json.TryGetValue("tag", out var tagToken))
+                using (var doc = JsonDocument.Parse(content))
                 {
-                    tag = tagToken.ToString();
-                    return FetchInformation(json, tag);
+                    if (doc.RootElement.TryGetProperty("tag", out var tagToken))
+                    {
+                        tag = tagToken.GetString();
+                        return DeserializeByTag(content, tag);
+                    }
                 }
 
                 throw new LNUrlException("A tag identifying the LNURL endpoint was not received.");
             case "withdrawRequest":
-                //fast withdraw request supported:
                 queryString = lnUrl.ParseQueryString();
                 k1 = queryString.Get("k1");
                 var minWithdrawable = queryString.Get("minWithdrawable");
@@ -347,8 +261,8 @@ public class LNURL
                 if (k1 is null || minWithdrawable is null || maxWithdrawable is null || callback is null)
                 {
                     response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                    json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-                    return FetchInformation(json, tag);
+                    var withdrawContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    return DeserializeByTag(withdrawContent, tag);
                 }
 
                 return new LNURLWithdrawRequest
@@ -377,22 +291,22 @@ public class LNURL
 
             default:
                 response = await httpClient.GetAsync(lnUrl, cancellationToken);
-                json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-                return FetchInformation(json, tag);
+                var defaultContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                return DeserializeByTag(defaultContent, tag);
         }
     }
 
-    private static object FetchInformation(JObject response, string tag)
+    private static object DeserializeByTag(string json, string tag)
     {
-        if (LNUrlStatusResponse.IsErrorResponse(response, out var errorResponse)) return errorResponse;
+        if (LNUrlStatusResponse.IsErrorResponse(json, out var errorResponse)) return errorResponse;
 
         return tag switch
         {
-            "channelRequest" => response.ToObject<LNURLChannelRequest>(),
-            "hostedChannelRequest" => response.ToObject<LNURLHostedChannelRequest>(),
-            "withdrawRequest" => response.ToObject<LNURLWithdrawRequest>(),
-            "payRequest" => response.ToObject<LNURLPayRequest>(),
-            _ => response
+            "channelRequest" => JsonSerializer.Deserialize<LNURLChannelRequest>(json, LNURLJsonOptions.Default),
+            "hostedChannelRequest" => JsonSerializer.Deserialize<LNURLHostedChannelRequest>(json, LNURLJsonOptions.Default),
+            "withdrawRequest" => JsonSerializer.Deserialize<LNURLWithdrawRequest>(json, LNURLJsonOptions.Default),
+            "payRequest" => JsonSerializer.Deserialize<LNURLPayRequest>(json, LNURLJsonOptions.Default),
+            _ => JsonDocument.Parse(json)
         };
     }
 }

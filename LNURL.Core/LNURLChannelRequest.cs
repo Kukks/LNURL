@@ -6,7 +6,6 @@ using BTCPayServer.Lightning;
 using LNURL.JsonConverters;
 using NBitcoin;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using STJ = System.Text.Json.Serialization;
 
 namespace LNURL;
@@ -47,15 +46,9 @@ public class LNURLChannelRequest
     [STJ.JsonPropertyName("tag")]
     public string Tag { get; set; }
 
-
     /// <summary>
-    /// Sends a channel open request to the service callback with the wallet's node ID and channel privacy preference.
+    /// Sends a channel open request to the service callback.
     /// </summary>
-    /// <param name="ourId">The wallet's Lightning node public key.</param>
-    /// <param name="privateChannel">If <c>true</c>, request a private (unannounced) channel.</param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <exception cref="LNUrlException">Thrown when the service returns an error response.</exception>
     public async Task SendRequest(PubKey ourId, bool privateChannel, HttpClient httpClient,
         CancellationToken cancellationToken = default)
     {
@@ -63,22 +56,17 @@ public class LNURLChannelRequest
         var uriBuilder = new UriBuilder(url);
         LNURL.AppendPayloadToQuery(uriBuilder, "k1", K1);
         LNURL.AppendPayloadToQuery(uriBuilder, "remoteid", ourId.ToString());
-        LNURL.AppendPayloadToQuery(uriBuilder, "private",privateChannel? "1":"0");
+        LNURL.AppendPayloadToQuery(uriBuilder, "private", privateChannel ? "1" : "0");
 
         url = new Uri(uriBuilder.ToString());
         var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        if (LNUrlStatusResponse.IsErrorResponse(json, out var error)) throw new LNUrlException(error.Reason);
-
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (LNUrlStatusResponse.IsErrorResponse(content, out var error)) throw new LNUrlException(error.Reason);
     }
 
     /// <summary>
     /// Sends a cancellation request for this channel request to the service callback.
     /// </summary>
-    /// <param name="ourId">The wallet's Lightning node public key.</param>
-    /// <param name="httpClient">The <see cref="HttpClient"/> used to perform the HTTP request.</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <exception cref="LNUrlException">Thrown when the service returns an error response.</exception>
     public async Task CancelRequest(PubKey ourId, HttpClient httpClient, CancellationToken cancellationToken = default)
     {
         var url = Callback;
@@ -89,7 +77,7 @@ public class LNURLChannelRequest
 
         url = new Uri(uriBuilder.ToString());
         var response = await httpClient.GetAsync(url, cancellationToken);
-        var json = JObject.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        if (LNUrlStatusResponse.IsErrorResponse(json, out var error)) throw new LNUrlException(error.Reason);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (LNUrlStatusResponse.IsErrorResponse(content, out var error)) throw new LNUrlException(error.Reason);
     }
 }
