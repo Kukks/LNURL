@@ -31,7 +31,7 @@ public class LNURLPayRequest
     /// <summary>
     /// Gets or sets the callback URL to which the wallet sends the payment amount to receive a BOLT11 invoice.
     /// </summary>
-    [JsonProperty("callback")]
+    [JsonProperty("callback", NullValueHandling = NullValueHandling.Ignore)]
     [JsonConverter(typeof(UriJsonConverter))]
     [STJ.JsonPropertyName("callback")]
     public Uri Callback { get; set; }
@@ -148,8 +148,20 @@ public class LNURLPayRequest
     /// Sends the second step of the LNURL-pay flow (LUD-06) by calling the service callback with the
     /// chosen amount, optional comment (LUD-12), and optional payer data (LUD-18).
     /// </summary>
+    public Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
+        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null,
+        CancellationToken cancellationToken = default)
+    {
+        return SendRequest(amount, network, new HttpLNURLCommunicator(httpClient), comment, payerData,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends the second step of the LNURL-pay flow (LUD-06) using a custom <see cref="ILNURLCommunicator"/> transport.
+    /// </summary>
     public async Task<LNURLPayRequestCallbackResponse> SendRequest(LightMoney amount, Network network,
-        HttpClient httpClient, string comment = null, LUD18PayerDataResponse payerData = null, CancellationToken cancellationToken = default)
+        ILNURLCommunicator communicator, string comment = null, LUD18PayerDataResponse payerData = null,
+        CancellationToken cancellationToken = default)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
@@ -161,8 +173,7 @@ public class LNURLPayRequest
                 HttpUtility.UrlEncode(System.Text.Json.JsonSerializer.Serialize(payerData, LNURLJsonOptions.Default)));
 
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await communicator.SendRequest(url, cancellationToken);
         if (LNUrlStatusResponse.IsErrorResponse(content, out var error)) throw new LNUrlException(error.Reason);
 
         var result = System.Text.Json.JsonSerializer.Deserialize<LNURLPayRequestCallbackResponse>(content, LNURLJsonOptions.Default);

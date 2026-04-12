@@ -1,14 +1,19 @@
 using System;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Lightning;
 using NBitcoin;
 using NBitcoin.Altcoins.Elements;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
+using NBitcoin.Secp256k1;
 using Newtonsoft.Json;
+using NNostr.Client;
+using NNostr.Client.Protocols;
 using Xunit;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -1082,6 +1087,293 @@ namespace LNURL.Tests
             var options1 = LNURLJsonOptions.CreateOptions();
             var options2 = LNURLJsonOptions.CreateOptions();
             Assert.NotSame(options1, options2);
+        }
+
+        #endregion
+
+        #region Nostr / ILNURLCommunicator Tests
+
+        [Fact]
+        public void CanParseNostrUri()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var pubKey = key.CreateXOnlyPubKey();
+            var nprofile = new NIP19.NosteProfileNote
+            {
+                PubKey = pubKey.ToHex(),
+                Relays = new[] { "wss://r.x.com" }
+            };
+            var nprofileStr = nprofile.ToNIP19();
+            var nostrUri = new Uri($"nostr:{nprofileStr}");
+
+            // Should round-trip through bech32 encoding
+            var bech32 = LNURL.EncodeUri(nostrUri, "payRequest", true);
+            var parsed = LNURL.Parse(bech32.ToString(), out var tag);
+            Assert.Equal(nostrUri, parsed);
+        }
+
+        [Fact]
+        public void CanEncodeBech32NostrUri()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var nprofile = new NIP19.NosteProfileNote
+            {
+                PubKey = key.CreateXOnlyPubKey().ToHex(),
+                Relays = new[] { "wss://relay.example.com" }
+            };
+            var nostrUri = new Uri($"nostr:{nprofile.ToNIP19()}");
+
+            var bech32 = LNURL.EncodeBech32(nostrUri);
+            Assert.StartsWith("lnurl1", bech32);
+
+            // Decode back
+            var decoded = LNURL.Parse(bech32, out _);
+            Assert.Equal("nostr", decoded.Scheme);
+        }
+
+        [Fact]
+        public void CanEncodeUriNostrScheme()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var nprofile = new NIP19.NosteProfileNote
+            {
+                PubKey = key.CreateXOnlyPubKey().ToHex(),
+                Relays = new[] { "wss://relay.example.com" }
+            };
+            var nostrUri = new Uri($"nostr:{nprofile.ToNIP19()}");
+
+            // bech32 mode
+            var lnurl = LNURL.EncodeUri(nostrUri, "payRequest", true);
+            Assert.StartsWith("lightning:", lnurl.ToString());
+
+            // LUD-17 mode — should detect nprofile host and use nostr: scheme
+            var lud17 = LNURL.EncodeUri(nostrUri, "payRequest", false);
+            Assert.Equal("nostr", LNURL.Parse(lnurl.ToString(), out var tag).Scheme);
+        }
+
+        [Fact]
+        public void LNURLNostrHelperGeneratesEndpoint()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var relays = new[] { new Uri("wss://relay1.example.com"), new Uri("wss://relay2.example.com") };
+
+            var helper = new LNURLNostrHelper(key, relays,
+                _ => Task.FromResult("{}"));
+
+            var endpoint = helper.Endpoint;
+            Assert.Equal("nostr", endpoint.Scheme);
+            Assert.StartsWith("nprofile1", endpoint.Host);
+
+            // Should produce a valid LNURL
+            var lnurl = helper.GetLNURL("payRequest");
+            Assert.NotNull(lnurl);
+        }
+
+        [Fact]
+        public void LNURLNostrHelperHasCorrectFilter()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var helper = new LNURLNostrHelper(key, new[] { new Uri("wss://relay.example.com") },
+                _ => Task.FromResult("{}"));
+
+            var filter = helper.Filter;
+            Assert.Contains(key.CreateXOnlyPubKey().ToHex(), filter.ReferencedPublicKeys);
+        }
+
+        [Fact]
+        public async Task CallbackFallbackToLnUrl()
+        {
+            // Simulate a payRequest response with no callback field
+            var payRequestJson = JsonSerializer.Serialize(new
+            {
+                tag = "payRequest",
+                minSendable = 1000,
+                maxSendable = 10000000,
+                metadata = "[[\"text/plain\",\"test\"]]"
+            });
+
+            var lnUrl = new Uri("https://example.com/lnurl-pay");
+            var communicator = new FakeCommunicator(payRequestJson);
+
+            var result = await LNURL.FetchInformation(lnUrl, "payRequest", communicator, CancellationToken.None);
+            var payRequest = Assert.IsType<LNURLPayRequest>(result);
+
+            // Callback should fall back to the original lnUrl
+            Assert.Equal(lnUrl, payRequest.Callback);
+        }
+
+        [Fact]
+        public async Task CallbackFallbackToLnUrlForWithdraw()
+        {
+            var withdrawJson = JsonSerializer.Serialize(new
+            {
+                tag = "withdrawRequest",
+                k1 = "abc123",
+                minWithdrawable = 1000,
+                maxWithdrawable = 50000,
+                defaultDescription = "test"
+            });
+
+            var lnUrl = new Uri("https://example.com/lnurl-withdraw");
+            var communicator = new FakeCommunicator(withdrawJson);
+
+            var result = await LNURL.FetchInformation(lnUrl, "withdrawRequest", communicator, CancellationToken.None);
+            var withdrawRequest = Assert.IsType<LNURLWithdrawRequest>(result);
+
+            Assert.Equal(lnUrl, withdrawRequest.Callback);
+        }
+
+        [Fact]
+        public async Task FetchInformationWithCommunicator()
+        {
+            var payJson = JsonSerializer.Serialize(new
+            {
+                tag = "payRequest",
+                callback = "https://example.com/callback",
+                minSendable = 1000,
+                maxSendable = 100000000,
+                metadata = "[[\"text/plain\",\"test service\"]]"
+            });
+
+            var communicator = new FakeCommunicator(payJson);
+            var result = await LNURL.FetchInformation(
+                new Uri("https://example.com/lnurl-pay"), null, communicator, CancellationToken.None);
+
+            var payRequest = Assert.IsType<LNURLPayRequest>(result);
+            Assert.Equal(new Uri("https://example.com/callback"), payRequest.Callback);
+            Assert.Equal(LightMoney.MilliSatoshis(1000), payRequest.MinSendable);
+        }
+
+        [Fact]
+        public void CanParseNaddrNostrUri()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var pubKey = key.CreateXOnlyPubKey();
+            var naddr = new NIP19.NostrAddressNote
+            {
+                Kind = (uint)NostrLNURLCommunicator.LnurlParameterEventKind,
+                Author = pubKey.ToHex(),
+                Identifier = Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes("payRequest")),
+                Relays = new[] { "wss://relay.example.com" }
+            };
+            var naddrStr = naddr.ToNIP19();
+            Assert.StartsWith("naddr1", naddrStr);
+
+            var nostrUri = new UriBuilder("nostr", naddrStr).Uri;
+
+            // bech32 round-trip
+            var bech32 = LNURL.EncodeUri(nostrUri, "payRequest", true);
+            var parsed = LNURL.Parse(bech32.ToString(), out var tag);
+            Assert.Equal("nostr", parsed.Scheme);
+            Assert.Contains("naddr1", parsed.ToString());
+        }
+
+        [Fact]
+        public void CanEncodeLud17NaddrUri()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var naddr = new NIP19.NostrAddressNote
+            {
+                Kind = (uint)NostrLNURLCommunicator.LnurlParameterEventKind,
+                Author = key.CreateXOnlyPubKey().ToHex(),
+                Identifier = Convert.ToHexString(System.Text.Encoding.UTF8.GetBytes("payRequest")),
+                Relays = new[] { "wss://relay.example.com" }
+            };
+            var nostrUri = new UriBuilder("nostr", naddr.ToNIP19()).Uri;
+
+            // LUD-17 mode should produce lnurlp: scheme that parses back to nostr:
+            var lud17 = LNURL.EncodeUri(nostrUri, "payRequest", false);
+            var parsed = LNURL.Parse(lud17.ToString(), out var tag);
+            Assert.Equal("nostr", parsed.Scheme);
+        }
+
+        [Fact]
+        public void LNURLNostrHelperGeneratesNaddrEndpoint()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var relays = new[] { new Uri("wss://relay1.example.com") };
+
+            var helper = new LNURLNostrHelper(key, relays,
+                _ => Task.FromResult("{}"));
+
+            var naddrEndpoint = helper.GetNaddrEndpoint("payRequest");
+            Assert.Equal("nostr", naddrEndpoint.Scheme);
+            Assert.StartsWith("naddr1", naddrEndpoint.Host.ToLowerInvariant());
+
+            // Should produce a valid LNURL
+            var lnurl = helper.GetNaddrLNURL("payRequest", true);
+            Assert.StartsWith("lightning:lnurl1", lnurl.ToString());
+        }
+
+        [Fact]
+        public async Task LNURLNostrHelperCreatesParameterEvent()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var relays = new[] { new Uri("wss://relay.example.com") };
+
+            var helper = new LNURLNostrHelper(key, relays,
+                _ => Task.FromResult("{}"));
+
+            var paramsJson = JsonSerializer.Serialize(new
+            {
+                tag = "payRequest",
+                minSendable = 1000,
+                maxSendable = 100000000,
+                metadata = "[[\"text/plain\",\"test\"]]"
+            });
+
+            var evt = await helper.CreateParameterEvent(paramsJson, "payRequest");
+
+            Assert.Equal(NostrLNURLCommunicator.LnurlParameterEventKind, evt.Kind);
+            Assert.Equal(key.CreateXOnlyPubKey().ToHex(), evt.PublicKey);
+            Assert.Equal(paramsJson, evt.Content);
+            Assert.Contains(evt.Tags, t => t.TagIdentifier == "d" && t.Data.Contains("payRequest"));
+            Assert.NotNull(evt.Id);
+            Assert.NotNull(evt.Signature);
+        }
+
+        [Fact]
+        public async Task FetchInformationWithNaddrCommunicator()
+        {
+            var key = NostrExtensions.ParseKey(RandomUtils.GetBytes(32));
+            var relays = new[] { new Uri("wss://relay.example.com") };
+            var helper = new LNURLNostrHelper(key, relays,
+                _ => Task.FromResult("{}"));
+
+            var naddrUri = helper.GetNaddrEndpoint("payRequest");
+
+            var payJson = JsonSerializer.Serialize(new
+            {
+                tag = "payRequest",
+                minSendable = 1000,
+                maxSendable = 100000000,
+                metadata = "[[\"text/plain\",\"naddr test\"]]"
+            });
+
+            var communicator = new FakeCommunicator(payJson);
+            var result = await LNURL.FetchInformation(naddrUri, "payRequest", communicator, CancellationToken.None);
+
+            var payRequest = Assert.IsType<LNURLPayRequest>(result);
+            Assert.Equal(LightMoney.MilliSatoshis(1000), payRequest.MinSendable);
+            // Callback should fall back to the naddr URI
+            Assert.Equal(naddrUri, payRequest.Callback);
+        }
+
+        /// <summary>
+        /// A test double for <see cref="ILNURLCommunicator"/> that returns a fixed JSON response.
+        /// </summary>
+        private class FakeCommunicator : ILNURLCommunicator
+        {
+            private readonly string _response;
+            public Uri LastRequestedUri { get; private set; }
+
+            public FakeCommunicator(string response) => _response = response;
+
+            public Task<string> SendRequest(Uri lnurl, CancellationToken cancellationToken = default)
+            {
+                LastRequestedUri = lnurl;
+                return Task.FromResult(_response);
+            }
         }
 
         #endregion

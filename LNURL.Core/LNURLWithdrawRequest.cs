@@ -107,7 +107,16 @@ public class LNURLWithdrawRequest
     /// Sends a withdrawal request to the service callback with the specified BOLT11 invoice,
     /// optional PIN, and optional balance notification URL.
     /// </summary>
-    public async Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
+    public Task<LNUrlStatusResponse> SendRequest(string bolt11, HttpClient httpClient, string pin = null,
+        Uri balanceNotify = null, CancellationToken cancellationToken = default)
+    {
+        return SendRequest(bolt11, new HttpLNURLCommunicator(httpClient), pin, balanceNotify, cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends a withdrawal request using a custom <see cref="ILNURLCommunicator"/> transport.
+    /// </summary>
+    public async Task<LNUrlStatusResponse> SendRequest(string bolt11, ILNURLCommunicator communicator, string pin = null,
         Uri balanceNotify = null, CancellationToken cancellationToken = default)
     {
         var url = Callback;
@@ -118,8 +127,7 @@ public class LNURLWithdrawRequest
         if (pin != null) LNURL.AppendPayloadToQuery(uriBuilder, "pin", pin);
 
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await communicator.SendRequest(url, cancellationToken);
 
         return System.Text.Json.JsonSerializer.Deserialize<LNUrlStatusResponse>(content, LNURLJsonOptions.Default);
     }

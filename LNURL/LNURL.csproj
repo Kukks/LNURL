@@ -23,6 +23,7 @@
     <ItemGroup>
         <ProjectReference Include="..\LNURL.Core\LNURL.Core.csproj" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="NNostr.Client" Version="0.0.54"/>
     </ItemGroup>
 
 </Project>

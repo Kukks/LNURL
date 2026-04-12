@@ -15,6 +15,8 @@ using LNURL.JsonConverters.SystemTextJson;
 [assembly: TypeForwardedTo(typeof(LNUrlException))]
 [assembly: TypeForwardedTo(typeof(Extensions))]
 [assembly: TypeForwardedTo(typeof(BoltCardHelper))]
+[assembly: TypeForwardedTo(typeof(ILNURLCommunicator))]
+[assembly: TypeForwardedTo(typeof(HttpLNURLCommunicator))]
 
 // JsonConverters (Newtonsoft)
 [assembly: TypeForwardedTo(typeof(UriJsonConverter))]

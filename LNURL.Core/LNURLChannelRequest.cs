@@ -49,7 +49,16 @@ public class LNURLChannelRequest
     /// <summary>
     /// Sends a channel open request to the service callback.
     /// </summary>
-    public async Task SendRequest(PubKey ourId, bool privateChannel, HttpClient httpClient,
+    public Task SendRequest(PubKey ourId, bool privateChannel, HttpClient httpClient,
+        CancellationToken cancellationToken = default)
+    {
+        return SendRequest(ourId, privateChannel, new HttpLNURLCommunicator(httpClient), cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends a channel open request using a custom <see cref="ILNURLCommunicator"/> transport.
+    /// </summary>
+    public async Task SendRequest(PubKey ourId, bool privateChannel, ILNURLCommunicator communicator,
         CancellationToken cancellationToken = default)
     {
         var url = Callback;
@@ -59,15 +68,22 @@ public class LNURLChannelRequest
         LNURL.AppendPayloadToQuery(uriBuilder, "private", privateChannel ? "1" : "0");
 
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await communicator.SendRequest(url, cancellationToken);
         if (LNUrlStatusResponse.IsErrorResponse(content, out var error)) throw new LNUrlException(error.Reason);
     }
 
     /// <summary>
     /// Sends a cancellation request for this channel request to the service callback.
     /// </summary>
-    public async Task CancelRequest(PubKey ourId, HttpClient httpClient, CancellationToken cancellationToken = default)
+    public Task CancelRequest(PubKey ourId, HttpClient httpClient, CancellationToken cancellationToken = default)
+    {
+        return CancelRequest(ourId, new HttpLNURLCommunicator(httpClient), cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends a cancellation request using a custom <see cref="ILNURLCommunicator"/> transport.
+    /// </summary>
+    public async Task CancelRequest(PubKey ourId, ILNURLCommunicator communicator, CancellationToken cancellationToken = default)
     {
         var url = Callback;
         var uriBuilder = new UriBuilder(url);
@@ -76,8 +92,7 @@ public class LNURLChannelRequest
         LNURL.AppendPayloadToQuery(uriBuilder, "cancel", "1");
 
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await communicator.SendRequest(url, cancellationToken);
         if (LNUrlStatusResponse.IsErrorResponse(content, out var error)) throw new LNUrlException(error.Reason);
     }
 }

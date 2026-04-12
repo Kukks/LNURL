@@ -65,15 +65,22 @@ public class LNAuthRequest
     /// <summary>
     /// Sends the signed challenge and public key to the LNURL-auth service to complete authentication.
     /// </summary>
-    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)
+    public Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, HttpClient httpClient, CancellationToken cancellationToken = default)
+    {
+        return SendChallenge(sig, key, new HttpLNURLCommunicator(httpClient), cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends the signed challenge using a custom <see cref="ILNURLCommunicator"/> transport.
+    /// </summary>
+    public async Task<LNUrlStatusResponse> SendChallenge(ECDSASignature sig, PubKey key, ILNURLCommunicator communicator, CancellationToken cancellationToken = default)
     {
         var url = LNUrl;
         var uriBuilder = new UriBuilder(url);
         LNURL.AppendPayloadToQuery(uriBuilder, "sig", Encoders.Hex.EncodeData(sig.ToDER()));
         LNURL.AppendPayloadToQuery(uriBuilder, "key", key.ToHex());
         url = new Uri(uriBuilder.ToString());
-        var response = await httpClient.GetAsync(url, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var content = await communicator.SendRequest(url, cancellationToken);
 
         return System.Text.Json.JsonSerializer.Deserialize<LNUrlStatusResponse>(content, LNURLJsonOptions.Default);
     }
@@ -85,6 +92,15 @@ public class LNAuthRequest
     {
         var sig = SignChallenge(key);
         return SendChallenge(sig, key.PubKey, httpClient, cancellationToken);
+    }
+
+    /// <summary>
+    /// Signs the <see cref="K1"/> challenge with the given key and sends the result using a custom transport.
+    /// </summary>
+    public Task<LNUrlStatusResponse> SendChallenge(Key key, ILNURLCommunicator communicator, CancellationToken cancellationToken = default)
+    {
+        var sig = SignChallenge(key);
+        return SendChallenge(sig, key.PubKey, communicator, cancellationToken);
     }
 
     /// <summary>
